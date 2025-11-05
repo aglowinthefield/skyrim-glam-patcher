@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
 using HelixToolkit.Wpf.SharpDX;
+using HelixToolkit.Wpf.SharpDX.Model.Scene;
 using RequiemGlamPatcher.Models;
 using Serilog;
 using Color = System.Windows.Media.Color;
@@ -26,6 +27,21 @@ public partial class OutfitPreviewWindow : Window
     private readonly DirectionalLight3D _backLight = new();
     private readonly DirectionalLight3D _frontalLight = new();
     private readonly DefaultEffectsManager _effectsManager = new();
+    private readonly List<MaterialEntry> _materialEntries = new();
+
+    private const float AmbientSrgb = 0.2f;
+    private const float KeyFillSrgb = 0.6f;
+    private const float RimSrgb = 0.85f;
+    private const float FrontalSrgb = 0.2f;
+
+    private float _ambientMultiplier = 0f;
+    private float _keyFillMultiplier = 1.6f;
+    private float _rimMultiplier = 1f;
+    private float _frontalMultiplier = 0f;
+    private float _materialDiffuseMultiplier = 5f;
+    private float _materialAmbientMultiplier = 2.3f;
+    private float _materialSpecularMultiplier = 0.3f;
+    private float _materialShininess = 0f;
     private PerspectiveCamera? _initialCamera;
 
     public OutfitPreviewWindow(ArmorPreviewScene scene)
@@ -91,6 +107,7 @@ public partial class OutfitPreviewWindow : Window
 
         var evaluatedMeshes = EvaluateMeshes(out var center, out var radius);
         _meshGroup.Children.Clear();
+        _materialEntries.Clear();
 
         if (evaluatedMeshes.Count == 0)
         {
@@ -224,26 +241,144 @@ public partial class OutfitPreviewWindow : Window
 
     private void ConfigureLights()
     {
-        // Ambient light - very high to fill in all shadows like BodySlide
-        _ambientLight.Color = ToMediaColor(new Color4(0.5f, 0.5f, 0.5f, 1f));
-
-        // Front-left key light - extremely bright main light
-        _frontLeftLight.Color = ToMediaColor(new Color4(2.2f, 2.2f, 2.2f, 1f));
+        // Directions line up with BodySlide's preview rig; intensities are applied separately.
         _frontLeftLight.Direction = new Vector3D(-0.667124384994991, 0.07412493166611012, 0.7412493166611012);
-
-        // Front-right fill light - very bright to eliminate shadows
-        _frontRightLight.Color = ToMediaColor(new Color4(1.8f, 1.8f, 1.8f, 1f));
         _frontRightLight.Direction = new Vector3D(0.5715476066494083, 0.08164965809277261, 0.8164965809277261);
-
-        // Back rim light - extremely bright for strong definition
-        _backLight.Color = ToMediaColor(new Color4(1.6f, 1.6f, 1.6f, 1f));
         _backLight.Direction = new Vector3D(0.2822162605150792, 0.18814417367671948, -0.9407208683835974);
+        _frontalLight.Direction = new Vector3D(0, 0, -1);
 
-        // Frontal light: very strong fill from camera direction (BodySlide style)
-        _frontalLight.Color = ToMediaColor(new Color4(0.8f, 0.8f, 0.8f, 1f));
+        ApplyLightIntensities();
     }
 
-    private static Material CreateMaterialForMesh(PreviewMeshShape mesh)
+    private void ApplyLightIntensities()
+    {
+        var ambientValue = ApplyExposure(SrgbToLinear(AmbientSrgb), _ambientMultiplier);
+        var ambientColor = new Color4(ambientValue, ambientValue, ambientValue, 1f);
+        _ambientLight.Color = ToMediaColor(ambientColor);
+        SetSceneLightColor(_ambientLight, ambientColor);
+
+        var keyFillValue = ApplyExposure(SrgbToLinear(KeyFillSrgb), _keyFillMultiplier);
+        var keyFillColor = new Color4(keyFillValue, keyFillValue, keyFillValue, 1f);
+        _frontLeftLight.Color = ToMediaColor(keyFillColor);
+        SetSceneLightColor(_frontLeftLight, keyFillColor);
+        _frontRightLight.Color = ToMediaColor(keyFillColor);
+        SetSceneLightColor(_frontRightLight, keyFillColor);
+
+        var rimValue = ApplyExposure(SrgbToLinear(RimSrgb), _rimMultiplier);
+        var rimColor = new Color4(rimValue, rimValue, rimValue, 1f);
+        _backLight.Color = ToMediaColor(rimColor);
+        SetSceneLightColor(_backLight, rimColor);
+
+        var frontalValue = ApplyExposure(SrgbToLinear(FrontalSrgb), _frontalMultiplier);
+        var frontalColor = new Color4(frontalValue, frontalValue, frontalValue, 1f);
+        _frontalLight.Color = ToMediaColor(frontalColor);
+        SetSceneLightColor(_frontalLight, frontalColor);
+
+        PreviewViewport?.InvalidateRender();
+    }
+
+    private void OnAmbientMultiplierChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _ambientMultiplier = (float)e.NewValue;
+        ApplyLightIntensities();
+    }
+
+    private void OnKeyFillMultiplierChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _keyFillMultiplier = (float)e.NewValue;
+        ApplyLightIntensities();
+    }
+
+    private void OnRimMultiplierChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _rimMultiplier = (float)e.NewValue;
+        ApplyLightIntensities();
+    }
+
+    private void OnFrontalMultiplierChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _frontalMultiplier = (float)e.NewValue;
+        ApplyLightIntensities();
+    }
+
+    private static float SrgbToLinear(float srgbValue)
+    {
+        srgbValue = Math.Max(0f, srgbValue);
+        return MathF.Pow(srgbValue, 2.2f);
+    }
+
+    private static float ApplyExposure(float linearValue, float exposureMultiplier)
+    {
+        return Math.Max(0f, linearValue * exposureMultiplier);
+    }
+
+    private static void SetSceneLightColor(Light3D light, Color4 color)
+    {
+        switch (light.SceneNode)
+        {
+            case AmbientLightNode ambientNode:
+                ambientNode.Color = color;
+                break;
+            case DirectionalLightNode directionalNode:
+                directionalNode.Color = color;
+                break;
+        }
+    }
+
+    private void OnMaterialDiffuseChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _materialDiffuseMultiplier = (float)e.NewValue;
+        ApplyMaterialSettings();
+    }
+
+    private void OnMaterialAmbientChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _materialAmbientMultiplier = (float)e.NewValue;
+        ApplyMaterialSettings();
+    }
+
+    private void OnMaterialSpecularChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _materialSpecularMultiplier = (float)e.NewValue;
+        ApplyMaterialSettings();
+    }
+
+    private void OnMaterialShininessChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _materialShininess = (float)e.NewValue;
+        ApplyMaterialSettings();
+    }
+
+    private void RegisterMaterial(PhongMaterial material, Color4 baseDiffuse, Color4 baseAmbient, Color4 baseSpecular)
+    {
+        _materialEntries.Add(new MaterialEntry(material, baseDiffuse, baseAmbient, baseSpecular));
+        ApplyMaterialSettings(material, baseDiffuse, baseAmbient, baseSpecular);
+    }
+
+    private void ApplyMaterialSettings()
+    {
+        foreach (var entry in _materialEntries)
+        {
+            ApplyMaterialSettings(entry.Material, entry.BaseDiffuse, entry.BaseAmbient, entry.BaseSpecular);
+        }
+
+        PreviewViewport?.InvalidateRender();
+    }
+
+    private void ApplyMaterialSettings(PhongMaterial material, Color4 baseDiffuse, Color4 baseAmbient, Color4 baseSpecular)
+    {
+        material.DiffuseColor = ScaleColor(baseDiffuse, _materialDiffuseMultiplier);
+        material.AmbientColor = ScaleColor(baseAmbient, _materialAmbientMultiplier);
+        material.SpecularColor = ScaleColor(baseSpecular, _materialSpecularMultiplier);
+        material.SpecularShininess = Math.Max(0f, _materialShininess);
+    }
+
+    private static Color4 ScaleColor(Color4 baseColor, float multiplier)
+    {
+        return new Color4(baseColor.Red * multiplier, baseColor.Green * multiplier, baseColor.Blue * multiplier, baseColor.Alpha);
+    }
+
+    private PhongMaterial CreateMaterialForMesh(PreviewMeshShape mesh)
     {
         var material = TryCreateTextureMaterial(mesh);
         if (material != null)
@@ -251,17 +386,21 @@ public partial class OutfitPreviewWindow : Window
 
         var fallbackColor = GetFallbackColor(mesh);
         var diffuse = ToColor4(fallbackColor);
-        return new PhongMaterial
+        var specular = new Color4(0.2f, 0.2f, 0.2f, 1f);
+        var fallbackMaterial = new PhongMaterial
         {
             DiffuseColor = diffuse,
-            AmbientColor = new Color4(diffuse.Red * 0.1f, diffuse.Green * 0.1f, diffuse.Blue * 0.1f, 1f),
-            SpecularColor = new Color4(0.25f, 0.25f, 0.25f, 1f),
-            SpecularShininess = 24f,
+            AmbientColor = diffuse,
+            SpecularColor = specular,
+            SpecularShininess = 30f,
             EmissiveColor = new Color4(0f, 0f, 0f, 1f)
         };
+
+        RegisterMaterial(fallbackMaterial, diffuse, diffuse, specular);
+        return fallbackMaterial;
     }
 
-    private static Material? TryCreateTextureMaterial(PreviewMeshShape mesh)
+    private PhongMaterial? TryCreateTextureMaterial(PreviewMeshShape mesh)
     {
         var texturePath = mesh.DiffuseTexturePath;
         if (string.IsNullOrWhiteSpace(texturePath))
@@ -282,11 +421,16 @@ public partial class OutfitPreviewWindow : Window
             {
                 DiffuseMap = new TextureModel(texturePath),
                 DiffuseColor = new Color4(1f, 1f, 1f, 1f),
-                AmbientColor = new Color4(0.1f, 0.1f, 0.1f, 1f),
-                SpecularColor = new Color4(0.25f, 0.25f, 0.25f, 1f),
-                SpecularShininess = 24f,
+                AmbientColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
+                SpecularColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
+                SpecularShininess = 30f,
                 EmissiveColor = new Color4(0f, 0f, 0f, 1f),
             };
+
+            RegisterMaterial(material,
+                new Color4(1f, 1f, 1f, 1f),
+                new Color4(0.2f, 0.2f, 0.2f, 1f),
+                new Color4(0.2f, 0.2f, 0.2f, 1f));
 
             Log.Debug("Successfully created textured material for {TexturePath}", texturePath);
             return material;
@@ -310,7 +454,7 @@ public partial class OutfitPreviewWindow : Window
         if (direction.LengthSquared > 1e-6)
         {
             direction.Normalize();
-            // _frontalLight.Direction = new Vector3D(-direction.X, -direction.Y, -direction.Z);
+            _frontalLight.Direction = new Vector3D(direction.X, direction.Y, direction.Z);
         }
     }
 
@@ -378,9 +522,12 @@ public partial class OutfitPreviewWindow : Window
     {
         base.OnClosed(e);
         _meshGroup.Children.Clear();
+        _materialEntries.Clear();
         PreviewViewport.Items.Clear();
         _effectsManager.Dispose();
     }
+
+    private sealed record MaterialEntry(PhongMaterial Material, Color4 BaseDiffuse, Color4 BaseAmbient, Color4 BaseSpecular);
 
     private record EvaluatedMesh(PreviewMeshShape Shape, IReadOnlyList<Vector3> Vertices, IReadOnlyList<Vector3> Normals);
 }

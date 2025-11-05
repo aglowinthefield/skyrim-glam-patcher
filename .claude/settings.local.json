@@ -15,7 +15,12 @@
       "Bash(dotnet add:*)",
       "Bash(dotnet publish:*)",
       "Bash(cat:*)",
-      "Bash(pwsh scripts/publish-win.ps1)"
+      "Bash(pwsh scripts/publish-win.ps1)",
+      "Bash(where /r C:Users HelixToolkit.Wpf.SharpDX.dll 2)",
+      "Bash(nul)",
+      "Bash(findstr:*)",
+      "Bash(pwsh -Command:*)",
+      "Bash($null)"
     ],
     "deny": [],
     "ask": []
