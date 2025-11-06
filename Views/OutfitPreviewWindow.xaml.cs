@@ -27,21 +27,20 @@ public partial class OutfitPreviewWindow : Window
     private readonly DirectionalLight3D _backLight = new();
     private readonly DirectionalLight3D _frontalLight = new();
     private readonly DefaultEffectsManager _effectsManager = new();
-    private readonly List<MaterialEntry> _materialEntries = new();
-
     private const float AmbientSrgb = 0.2f;
     private const float KeyFillSrgb = 0.6f;
     private const float RimSrgb = 0.85f;
     private const float FrontalSrgb = 0.2f;
 
+    private const float MaterialDiffuseMultiplier = 5f;
+    private const float MaterialAmbientMultiplier = 2.3f;
+    private const float MaterialSpecularMultiplier = 0.3f;
+    private const float MaterialShininess = 0f;
+
     private float _ambientMultiplier = 0f;
     private float _keyFillMultiplier = 1.6f;
     private float _rimMultiplier = 1f;
     private float _frontalMultiplier = 0f;
-    private float _materialDiffuseMultiplier = 5f;
-    private float _materialAmbientMultiplier = 2.3f;
-    private float _materialSpecularMultiplier = 0.3f;
-    private float _materialShininess = 0f;
     private PerspectiveCamera? _initialCamera;
 
     public OutfitPreviewWindow(ArmorPreviewScene scene)
@@ -107,8 +106,6 @@ public partial class OutfitPreviewWindow : Window
 
         var evaluatedMeshes = EvaluateMeshes(out var center, out var radius);
         _meshGroup.Children.Clear();
-        _materialEntries.Clear();
-
         if (evaluatedMeshes.Count == 0)
         {
             MissingAssetsPanel.Visibility = Visibility.Visible;
@@ -325,54 +322,6 @@ public partial class OutfitPreviewWindow : Window
         }
     }
 
-    private void OnMaterialDiffuseChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        _materialDiffuseMultiplier = (float)e.NewValue;
-        ApplyMaterialSettings();
-    }
-
-    private void OnMaterialAmbientChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        _materialAmbientMultiplier = (float)e.NewValue;
-        ApplyMaterialSettings();
-    }
-
-    private void OnMaterialSpecularChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        _materialSpecularMultiplier = (float)e.NewValue;
-        ApplyMaterialSettings();
-    }
-
-    private void OnMaterialShininessChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        _materialShininess = (float)e.NewValue;
-        ApplyMaterialSettings();
-    }
-
-    private void RegisterMaterial(PhongMaterial material, Color4 baseDiffuse, Color4 baseAmbient, Color4 baseSpecular)
-    {
-        _materialEntries.Add(new MaterialEntry(material, baseDiffuse, baseAmbient, baseSpecular));
-        ApplyMaterialSettings(material, baseDiffuse, baseAmbient, baseSpecular);
-    }
-
-    private void ApplyMaterialSettings()
-    {
-        foreach (var entry in _materialEntries)
-        {
-            ApplyMaterialSettings(entry.Material, entry.BaseDiffuse, entry.BaseAmbient, entry.BaseSpecular);
-        }
-
-        PreviewViewport?.InvalidateRender();
-    }
-
-    private void ApplyMaterialSettings(PhongMaterial material, Color4 baseDiffuse, Color4 baseAmbient, Color4 baseSpecular)
-    {
-        material.DiffuseColor = ScaleColor(baseDiffuse, _materialDiffuseMultiplier);
-        material.AmbientColor = ScaleColor(baseAmbient, _materialAmbientMultiplier);
-        material.SpecularColor = ScaleColor(baseSpecular, _materialSpecularMultiplier);
-        material.SpecularShininess = Math.Max(0f, _materialShininess);
-    }
-
     private static Color4 ScaleColor(Color4 baseColor, float multiplier)
     {
         return new Color4(baseColor.Red * multiplier, baseColor.Green * multiplier, baseColor.Blue * multiplier, baseColor.Alpha);
@@ -385,19 +334,18 @@ public partial class OutfitPreviewWindow : Window
             return material;
 
         var fallbackColor = GetFallbackColor(mesh);
-        var diffuse = ToColor4(fallbackColor);
-        var specular = new Color4(0.2f, 0.2f, 0.2f, 1f);
-        var fallbackMaterial = new PhongMaterial
+        var baseDiffuse = ToColor4(fallbackColor);
+        var baseAmbient = baseDiffuse;
+        var baseSpecular = new Color4(0.2f, 0.2f, 0.2f, 1f);
+
+        return new PhongMaterial
         {
-            DiffuseColor = diffuse,
-            AmbientColor = diffuse,
-            SpecularColor = specular,
-            SpecularShininess = 30f,
+            DiffuseColor = ScaleColor(baseDiffuse, MaterialDiffuseMultiplier),
+            AmbientColor = ScaleColor(baseAmbient, MaterialAmbientMultiplier),
+            SpecularColor = ScaleColor(baseSpecular, MaterialSpecularMultiplier),
+            SpecularShininess = Math.Max(0f, MaterialShininess),
             EmissiveColor = new Color4(0f, 0f, 0f, 1f)
         };
-
-        RegisterMaterial(fallbackMaterial, diffuse, diffuse, specular);
-        return fallbackMaterial;
     }
 
     private PhongMaterial? TryCreateTextureMaterial(PreviewMeshShape mesh)
@@ -417,20 +365,19 @@ public partial class OutfitPreviewWindow : Window
 
         try
         {
+            var baseDiffuse = new Color4(1f, 1f, 1f, 1f);
+            var baseAmbient = new Color4(0.2f, 0.2f, 0.2f, 1f);
+            var baseSpecular = new Color4(0.2f, 0.2f, 0.2f, 1f);
+
             var material = new PhongMaterial
             {
                 DiffuseMap = new TextureModel(texturePath),
-                DiffuseColor = new Color4(1f, 1f, 1f, 1f),
-                AmbientColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
-                SpecularColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
-                SpecularShininess = 30f,
+                DiffuseColor = ScaleColor(baseDiffuse, MaterialDiffuseMultiplier),
+                AmbientColor = ScaleColor(baseAmbient, MaterialAmbientMultiplier),
+                SpecularColor = ScaleColor(baseSpecular, MaterialSpecularMultiplier),
+                SpecularShininess = Math.Max(0f, MaterialShininess),
                 EmissiveColor = new Color4(0f, 0f, 0f, 1f),
             };
-
-            RegisterMaterial(material,
-                new Color4(1f, 1f, 1f, 1f),
-                new Color4(0.2f, 0.2f, 0.2f, 1f),
-                new Color4(0.2f, 0.2f, 0.2f, 1f));
 
             Log.Debug("Successfully created textured material for {TexturePath}", texturePath);
             return material;
@@ -522,12 +469,9 @@ public partial class OutfitPreviewWindow : Window
     {
         base.OnClosed(e);
         _meshGroup.Children.Clear();
-        _materialEntries.Clear();
         PreviewViewport.Items.Clear();
         _effectsManager.Dispose();
     }
-
-    private sealed record MaterialEntry(PhongMaterial Material, Color4 BaseDiffuse, Color4 BaseAmbient, Color4 BaseSpecular);
 
     private record EvaluatedMesh(PreviewMeshShape Shape, IReadOnlyList<Vector3> Vertices, IReadOnlyList<Vector3> Normals);
 }
