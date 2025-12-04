@@ -201,7 +201,8 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
 
     private static bool IsSkyPatcherOutfitLine(string trimmed)
     {
-        return trimmed.IndexOf("filterByOutfits=", StringComparison.OrdinalIgnoreCase) >= 0;
+        return trimmed.IndexOf("filterByOutfits=", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               trimmed.IndexOf("outfitDefault=", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static IReadOnlyList<string> ExtractOutfitFormKeys(DistributionFileType type, string trimmed)
@@ -231,7 +232,18 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
     private static IReadOnlyList<string> ExtractSkyPatcherOutfitKeys(string trimmed)
     {
         var keys = new List<string>();
-        const string marker = "filterByOutfits=";
+        
+        // Extract from filterByOutfits= syntax
+        ExtractFromMarker(trimmed, "filterByOutfits=", keys);
+        
+        // Extract from outfitDefault= syntax
+        ExtractFromMarker(trimmed, "outfitDefault=", keys);
+
+        return keys;
+    }
+
+    private static void ExtractFromMarker(string trimmed, string marker, List<string> keys)
+    {
         var startIndex = 0;
 
         while (true)
@@ -251,8 +263,6 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
             var tokens = segment.Split([','], StringSplitOptions.RemoveEmptyEntries);
             keys.AddRange(NormalizeFormKeyTokens(tokens));
         }
-
-        return keys;
     }
 
     private static IReadOnlyList<string> NormalizeFormKeyTokens(IEnumerable<string> tokens)
