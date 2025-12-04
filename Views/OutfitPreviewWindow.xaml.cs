@@ -49,7 +49,6 @@ public partial class OutfitPreviewWindow
     {
         InitializeComponent();
         _scene = scene ?? throw new ArgumentNullException(nameof(scene));
-        LightingDebugExpander.Visibility = Debugger.IsAttached ? Visibility.Visible : Visibility.Collapsed;
 
         InitializeViewport();
         BuildScene();
