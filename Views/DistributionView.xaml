@@ -171,7 +171,8 @@
                                                              FontWeight="Bold" />
                                                 <TextBlock Text="Outfit:" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                 <ComboBox ItemsSource="{Binding DataContext.AvailableOutfits, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                          SelectedItem="{Binding SelectedOutfit}"
+                                                          SelectedItem="{Binding SelectedOutfit, Mode=TwoWay}"
+                                                          Text="{Binding SelectedOutfit.EditorID, Mode=OneWay}"
                                                           DisplayMemberPath="EditorID"
                                                           MinWidth="200"
                                                           Margin="0,0,6,0"

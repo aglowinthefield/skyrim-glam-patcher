@@ -328,6 +328,12 @@ public class DistributionViewModel : ReactiveObject
                 {
                     DistributionFilePath = value.File.FullPath;
                     NewFileName = string.Empty; // Clear new filename when selecting existing file
+                    
+                    // Automatically load the file when selected
+                    if (File.Exists(DistributionFilePath) && !IsLoading)
+                    {
+                        _ = LoadDistributionFileAsync();
+                    }
                 }
                 else if (value.IsNewFile)
                 {
@@ -882,6 +888,22 @@ public class DistributionViewModel : ReactiveObject
             return;
         }
 
+        // Check if file exists and prompt for overwrite confirmation (before showing loading state)
+        if (File.Exists(DistributionFilePath))
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"The file '{Path.GetFileName(DistributionFilePath)}' already exists.\n\nDo you want to overwrite it?",
+                "Confirm Overwrite",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+            
+            if (result != System.Windows.MessageBoxResult.Yes)
+            {
+                StatusMessage = "Save cancelled.";
+                return;
+            }
+        }
+
         try
         {
             IsLoading = true;
@@ -944,19 +966,25 @@ public class DistributionViewModel : ReactiveObject
             DistributionEntries.Clear();
 
             // Ensure outfits are loaded before creating entries so ComboBox bindings work
-            EnsureOutfitsLoaded();
-            
-            // Wait for outfits to load if they're being loaded asynchronously
-            // Poll until loaded or timeout (max 5 seconds)
-            var timeout = DateTime.Now.AddSeconds(5);
-            while (!_outfitsLoaded && AvailableOutfits.Count == 0 && DateTime.Now < timeout)
-            {
-                await Task.Delay(50);
-            }
+            // Use the async version to properly wait for outfits to load
+            await LoadAvailableOutfitsAsync();
+
+            _logger.Information("Processing {Count} entries, AvailableOutfits has {OutfitCount} items", 
+                entries.Count, AvailableOutfits.Count);
 
             foreach (var entry in entries)
             {
                 var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry);
+                
+                // Debug: Log what outfit is in the entry
+                _logger.Information("Entry outfit from file: FormKey={FormKey}, EditorID={EditorID}", 
+                    entry.Outfit?.FormKey.ToString() ?? "null", 
+                    entry.Outfit?.EditorID ?? "null");
+                
+                // Debug: Log what the entryVm has after construction
+                _logger.Information("EntryVm after construction: SelectedOutfit FormKey={FormKey}, EditorID={EditorID}", 
+                    entryVm.SelectedOutfit?.FormKey.ToString() ?? "null",
+                    entryVm.SelectedOutfit?.EditorID ?? "null");
                 
                 // Find the outfit in AvailableOutfits to ensure ComboBox binding works
                 // The ComboBox needs the same instance reference from AvailableOutfits
@@ -964,14 +992,35 @@ public class DistributionViewModel : ReactiveObject
                 {
                     var outfitFormKey = entryVm.SelectedOutfit.FormKey;
                     var matchingOutfit = AvailableOutfits.FirstOrDefault(o => o.FormKey == outfitFormKey);
+                    
+                    _logger.Information("Looking for outfit {FormKey} in AvailableOutfits: Found={Found}", 
+                        outfitFormKey, matchingOutfit != null);
+                    
                     if (matchingOutfit != null)
                     {
+                        // Use the outfit from AvailableOutfits so ComboBox recognizes it
+                        _logger.Information("Setting entryVm.SelectedOutfit to matching outfit: {EditorID}", 
+                            matchingOutfit.EditorID);
                         entryVm.SelectedOutfit = matchingOutfit;
+                        
+                        // Debug: Verify it was set
+                        _logger.Information("After setting: entryVm.SelectedOutfit = {EditorID}, same reference = {SameRef}", 
+                            entryVm.SelectedOutfit?.EditorID ?? "null",
+                            ReferenceEquals(entryVm.SelectedOutfit, matchingOutfit));
                     }
                     else
                     {
-                        _logger.Debug("Outfit {FormKey} not found in AvailableOutfits, ComboBox may not display it", outfitFormKey);
+                        _logger.Warning("Outfit {FormKey} ({EditorID}) not found in AvailableOutfits! Cannot pre-select.", 
+                            outfitFormKey, entryVm.SelectedOutfit?.EditorID ?? "unknown");
+                        
+                        // Debug: List first few outfits in AvailableOutfits
+                        var sampleOutfits = AvailableOutfits.Take(5).Select(o => $"{o.FormKey}:{o.EditorID}");
+                        _logger.Debug("Sample AvailableOutfits: {Outfits}", string.Join(", ", sampleOutfits));
                     }
+                }
+                else
+                {
+                    _logger.Warning("Entry has null SelectedOutfit after construction");
                 }
                 
                 // Resolve NPCs from FormKeys - try to match with AvailableNpcs first
@@ -1271,6 +1320,36 @@ public class DistributionViewModel : ReactiveObject
                     _logger.Debug("Loaded {Count} available outfits.", outfits.Count);
                 }, System.Windows.Threading.DispatcherPriority.Background);
             });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to load available outfits.");
+            AvailableOutfits.Clear();
+        }
+    }
+
+    private async Task LoadAvailableOutfitsAsync()
+    {
+        // Only load once, and only if not already loaded
+        if (_outfitsLoaded || AvailableOutfits.Count > 0)
+            return;
+
+        if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        {
+            AvailableOutfits.Clear();
+            return;
+        }
+
+        try
+        {
+            // Load outfits on background thread
+            var outfits = await Task.Run(() => 
+                linkCache.PriorityOrder.WinningOverrides<IOutfitGetter>().ToList());
+            
+            // Update collection on UI thread
+            AvailableOutfits = new ObservableCollection<IOutfitGetter>(outfits);
+            _outfitsLoaded = true;
+            _logger.Debug("Loaded {Count} available outfits.", outfits.Count);
         }
         catch (Exception ex)
         {

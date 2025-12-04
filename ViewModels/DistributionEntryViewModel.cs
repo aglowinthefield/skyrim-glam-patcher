@@ -47,7 +47,10 @@ public class DistributionEntryViewModel : ReactiveObject
         get => _selectedOutfit;
         set
         {
-            this.RaiseAndSetIfChanged(ref _selectedOutfit, value);
+            // Force update even if "equal" by FormKey - we need the exact instance reference
+            // for ComboBox binding to work correctly
+            _selectedOutfit = value;
+            this.RaisePropertyChanged(nameof(SelectedOutfit));
             if (Entry != null)
                 Entry.Outfit = value;
         }
