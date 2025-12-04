@@ -6,7 +6,6 @@ tempering recipes from master ESPs (like Requiem.esp, FTweaks, etc.) to appearan
 ## Features
 
 - **Mod Organizer 2 Integration**: Auto-detects data path when run from MO2!
-- **Auto-Matching**: Automatically matches source armor pieces to target armors based on name similarity
 - **Manual Override**: Manually select target armors for each source armor
 - **Batch Processing**: Select entire outfit sets and patch them all at once
 - **Comprehensive Syncing**: Copies:
@@ -100,22 +99,9 @@ If you prefer to run the tool standalone without MO2, follow these steps:
 
 ### Step 3: Match Armors
 
-**Option A: Auto-Match**
-
-1. Adjust the **Auto-Match Threshold** slider (60% recommended)
-2. Click **Auto-Match**
-3. Review the matches in the Matching panel
-
-**Option B: Manual Match**
-
-1. In the Matching panel, click the Target Armor dropdown for each source armor
-2. Select the appropriate target armor from the list
-
-**Option C: Batch Outfit Selection**
-
-1. In the Source Armors panel, check the boxes for armors in the same outfit
-2. Click **Select Outfit** to automatically select all related pieces
-3. Then use Auto-Match or manual matching
+1. In the Matching panel, choose the target armor for each source armor
+2. Use "Map Selection" for stat copy or "Mark Glam Only" to zero armor rating
+3. Batch outfit selection is available to help you select related pieces before mapping
 
 ### Step 4: Create Patch
 
@@ -140,11 +126,10 @@ appearance with Requiem's "Leather Boots" stats.
 
 1. Load `ClericOutfitSE.esp` as Source Plugin
 2. Load `Requiem.esp` as Target Plugin
-3. Use Auto-Match (it should match boots to boots, etc.)
-4. If auto-match isn't perfect, manually select "Leather Boots" from Requiem for the Cleric boots
-5. Select all pieces of the Cleric outfit
-6. Click Create Patch
-7. Load `GlamPatch.esp` after both ClericOutfitSE.esp and Requiem.esp
+3. Manually select "Leather Boots" from Requiem for the Cleric boots
+4. Select all pieces of the Cleric outfit
+5. Click Create Patch
+6. Load `GlamPatch.esp` after both ClericOutfitSE.esp and Requiem.esp
 
 Now the Cleric Outfit will have Requiem's stats, keywords, and balance!
 
@@ -176,12 +161,6 @@ files.
 - Ensure the selected plugin is a valid Skyrim SE plugin
 - Try reloading or restarting the application
 - Some plugins may be encrypted or have non-standard formats
-
-### "Auto-match found no matches"
-
-- Lower the Auto-Match Threshold slider
-- Try manual matching instead
-- Ensure target plugin contains similar armor types
 
 ### Patch doesn't work in game
 

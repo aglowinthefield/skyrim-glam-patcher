@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Boutique is a WPF desktop application for Skyrim Special Edition modding. It syncs armor and clothing stats, keywords,
 enchantments, and tempering recipes from master ESPs (like Requiem.esp) to appearance/glam mods, allowing players to use
-cosmetic armor mods while maintaining balanced gameplay stats.
+cosmetic armor mods while maintaining balanced gameplay stats. 
 
 **Tech Stack:**
 
@@ -95,10 +95,8 @@ All services are registered in `App.xaml.cs` using Autofac. The DI container res
 
 **MatchingService** (`Services/MatchingService.cs`)
 
-- Auto-matches source armors to target armors based on name similarity
-- Uses Jaccard similarity with armor-type-aware scoring
 - Groups armors by outfit sets for batch operations
-- Key method: `AutoMatchArmors(sourceArmors, targetArmors, confidenceThreshold)`
+- Key method: `GroupByOutfit(armors)`
 
 **ArmorPreviewService** (`Services/ArmorPreviewService.cs`)
 
@@ -147,7 +145,7 @@ Mutagen is the core library for reading and writing Bethesda plugin files. Key c
 2. **Initialize**: `MutagenService.InitializeAsync()` creates the game environment
 3. **Load Plugins**: User selects source and target plugins
 4. **Load Armors**: Service loads armor records from the selected plugins
-5. **Matching**: Auto-match or manual matching of source armors to target armors
+5. **Matching**: Manual matching of source armors to target armors
 6. **Create Patch**: `PatchingService.CreatePatchAsync()` generates the patch ESP
 7. **Distribution/Outfit Creation**: Optional outfit record creation for SPID/SkyPatcher
 
