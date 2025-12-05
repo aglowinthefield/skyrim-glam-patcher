@@ -39,4 +39,16 @@ public interface IMutagenService
     ///     Loads outfit records from a specific plugin
     /// </summary>
     Task<IEnumerable<IOutfitGetter>> LoadOutfitsFromPluginAsync(string pluginFileName);
+
+    /// <summary>
+    ///     Refreshes the LinkCache to pick up newly created or modified plugins.
+    ///     Call this after writing a patch to ensure subsequent operations can read it.
+    /// </summary>
+    Task RefreshLinkCacheAsync();
+
+    /// <summary>
+    ///     Releases file handles held by the environment/LinkCache.
+    ///     Call this before writing to a plugin that may be held open by the environment.
+    /// </summary>
+    void ReleaseLinkCache();
 }

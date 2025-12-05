@@ -49,7 +49,7 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
         string outputPath,
         IProgress<(int current, int total, string message)>? progress = null)
     {
-        return await Task.Run(() =>
+        var result = await Task.Run(() =>
         {
             try
             {
@@ -131,7 +131,15 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                 // Write patch to file
                 progress?.Report((total, total, "Writing patch file..."));
 
-                patchMod.WriteToBinary(outputPath);
+                // Release any file handles held by the environment before writing
+                mutagenService.ReleaseLinkCache();
+
+                var writeParameters = new BinaryWriteParameters
+                {
+                    LowerRangeDisallowedHandler = new NoCheckIfLowerRangeDisallowed()
+                };
+
+                patchMod.WriteToBinary(outputPath, writeParameters);
 
                 _logger.Information("Patch successfully written to {OutputPath}", outputPath);
 
@@ -143,6 +151,15 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                 return (false, $"Error creating patch: {ex.Message}");
             }
         });
+
+        // Refresh the link cache so subsequent operations can read the newly written patch
+        if (result.Item1)
+        {
+            progress?.Report((1, 1, "Refreshing load order..."));
+            await mutagenService.RefreshLinkCacheAsync();
+        }
+
+        return result;
     }
 
     public async Task<(bool success, string message, IReadOnlyList<OutfitCreationResult> results)>
@@ -151,15 +168,15 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
             string outputPath,
             IProgress<(int current, int total, string message)>? progress = null)
     {
-        return await Task.Run(() =>
+        var result = await Task.Run(() =>
         {
             try
             {
                 var outfitList = outfits.ToList();
-                if (outfitList.Count == 0) return (false, "No outfits to create.", []);
+                if (outfitList.Count == 0) return (false, "No outfits to create.", (IReadOnlyList<OutfitCreationResult>)[]);
 
                 if (!mutagenService.IsInitialized)
-                    return (false, "Mutagen service is not initialized. Please set the Skyrim data path first.", []);
+                    return (false, "Mutagen service is not initialized. Please set the Skyrim data path first.", (IReadOnlyList<OutfitCreationResult>)[]);
 
                 _logger.Information("Beginning outfit creation. Destination: {OutputPath}. OutfitCount={Count}",
                     outputPath, outfitList.Count);
@@ -178,7 +195,7 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                     {
                         _logger.Error(ex, "Failed to load existing patch for outfit creation at {OutputPath}.",
                             outputPath);
-                        return (false, $"Unable to load existing patch: {ex.Message}", []);
+                        return (false, $"Unable to load existing patch: {ex.Message}", (IReadOnlyList<OutfitCreationResult>)[]);
                     }
                 else
                     patchMod = new SkyrimMod(modKey, SkyrimRelease.SkyrimSE);
@@ -234,6 +251,9 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                 EnsureMasters(patchMod, requiredMasters);
                 progress?.Report((total, total, "Writing patch file..."));
 
+                // Release any file handles held by the environment before writing
+                mutagenService.ReleaseLinkCache();
+
                 var writeParameters = new BinaryWriteParameters
                 {
                     LowerRangeDisallowedHandler = new NoCheckIfLowerRangeDisallowed()
@@ -248,12 +268,12 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                     var lockedMessage =
                         $"Unable to write to {outputPath}. It appears to be locked by another application (Mod Organizer, xEdit, or the Skyrim launcher). Close the application that has the file open, or pick a different output path, then try again.";
                     _logger.Error(ioEx, lockedMessage);
-                    return (false, lockedMessage, []);
+                    return (false, lockedMessage, (IReadOnlyList<OutfitCreationResult>)[]);
                 }
 
                 _logger.Information("Outfit creation completed successfully. File: {OutputPath}", outputPath);
 
-                return (true, $"Saved {results.Count} outfit(s) to {outputPath}", results);
+                return (true, $"Saved {results.Count} outfit(s) to {outputPath}", (IReadOnlyList<OutfitCreationResult>)results);
             }
             catch (Exception ex)
             {
@@ -262,6 +282,15 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                     (IReadOnlyList<OutfitCreationResult>)[]);
             }
         });
+
+        // Refresh the link cache so subsequent operations can read the newly written patch
+        if (result.Item1)
+        {
+            progress?.Report((1, 1, "Refreshing load order..."));
+            await mutagenService.RefreshLinkCacheAsync();
+        }
+
+        return result;
     }
 
     private static void ApplyGlamOnlyAdjustments(Armor target)

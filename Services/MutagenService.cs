@@ -121,4 +121,26 @@ public class MutagenService : IMutagenService
             }
         });
     }
+
+    public async Task RefreshLinkCacheAsync()
+    {
+        if (string.IsNullOrEmpty(DataFolderPath))
+            return;
+
+        await Task.Run(() =>
+        {
+            // Dispose old environment before creating a new one
+            _environment?.Dispose();
+
+            _environment = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE);
+            LinkCache = _environment.LoadOrder.ToImmutableLinkCache();
+        });
+    }
+
+    public void ReleaseLinkCache()
+    {
+        _environment?.Dispose();
+        _environment = null;
+        LinkCache = null;
+    }
 }
