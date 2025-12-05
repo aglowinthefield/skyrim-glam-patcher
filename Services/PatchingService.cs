@@ -438,7 +438,7 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
 
         if (newRecordCount < eslRecordLimit)
         {
-            patchMod.ModHeader.Flags |= SkyrimModHeader.HeaderFlag.Light;
+            patchMod.ModHeader.Flags |= SkyrimModHeader.HeaderFlag.Small;
             _logger.Information("ESL flag applied. New record count: {Count} (limit: {Limit}).",
                 newRecordCount, eslRecordLimit);
         }
