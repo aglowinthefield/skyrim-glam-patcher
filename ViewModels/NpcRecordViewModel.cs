@@ -1,20 +1,22 @@
 using Boutique.Models;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
 public class NpcRecordViewModel : ReactiveObject
 {
     private readonly string _searchCache;
-    private bool _isSelected;
-    private bool _hasConflict;
-    private string? _conflictingFileName;
 
     public NpcRecordViewModel(NpcRecord npcRecord)
     {
         NpcRecord = npcRecord;
         _searchCache = $"{DisplayName} {EditorID} {ModDisplayName} {FormKeyString}".ToLowerInvariant();
+
+        // Update ConflictTooltip when HasConflict or ConflictingFileName changes
+        this.WhenAnyValue(x => x.HasConflict, x => x.ConflictingFileName)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(ConflictTooltip)));
     }
 
     public NpcRecord NpcRecord { get; }
@@ -25,37 +27,17 @@ public class NpcRecordViewModel : ReactiveObject
     public string FormKeyString => NpcRecord.FormKeyString;
     public FormKey FormKey => NpcRecord.FormKey;
 
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => this.RaiseAndSetIfChanged(ref _isSelected, value);
-    }
+    [Reactive] public bool IsSelected { get; set; }
 
     /// <summary>
     /// Indicates whether this NPC has a conflicting outfit distribution in an existing file.
     /// </summary>
-    public bool HasConflict
-    {
-        get => _hasConflict;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _hasConflict, value);
-            this.RaisePropertyChanged(nameof(ConflictTooltip));
-        }
-    }
+    [Reactive] public bool HasConflict { get; set; }
 
     /// <summary>
     /// The name of the file that has a conflicting distribution for this NPC.
     /// </summary>
-    public string? ConflictingFileName
-    {
-        get => _conflictingFileName;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _conflictingFileName, value);
-            this.RaisePropertyChanged(nameof(ConflictTooltip));
-        }
-    }
+    [Reactive] public string? ConflictingFileName { get; set; }
 
     /// <summary>
     /// Tooltip text for the conflict warning.
@@ -72,4 +54,3 @@ public class NpcRecordViewModel : ReactiveObject
         return _searchCache.Contains(searchTerm.Trim().ToLowerInvariant());
     }
 }
-

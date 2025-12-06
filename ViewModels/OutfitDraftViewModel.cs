@@ -4,6 +4,7 @@ using System.Reactive;
 using System.Text.RegularExpressions;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
@@ -16,7 +17,6 @@ public class OutfitDraftViewModel : ReactiveObject
     private readonly Action<OutfitDraftViewModel> _removeDraft;
     private readonly Action<OutfitDraftViewModel, ArmorRecordViewModel> _removePiece;
     private string _editorId = string.Empty;
-    private FormKey? _formKey;
     private string _name = string.Empty;
     private string _previousValidName = "Outfit";
 
@@ -38,6 +38,14 @@ public class OutfitDraftViewModel : ReactiveObject
         _pieces.CollectionChanged += PiecesOnCollectionChanged;
         Pieces = new ReadOnlyObservableCollection<ArmorRecordViewModel>(_pieces);
 
+        // Update computed properties when FormKey changes
+        this.WhenAnyValue(x => x.FormKey)
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(FormIdDisplay));
+                this.RaisePropertyChanged(nameof(Header));
+            });
+
         RemovePieceCommand = ReactiveCommand.Create<ArmorRecordViewModel>(piece => _removePiece(this, piece));
         RemoveSelfCommand = ReactiveCommand.Create(() => _removeDraft(this));
         PreviewCommand = ReactiveCommand.CreateFromTask(() => _previewDraft(this),
@@ -58,21 +66,9 @@ public class OutfitDraftViewModel : ReactiveObject
 
     public bool HasPieces => _pieces.Count > 0;
 
-    public FormKey? FormKey
-    {
-        get => _formKey;
-        set
-        {
-            if (_formKey == value)
-                return;
+    [Reactive] public FormKey? FormKey { get; set; }
 
-            this.RaiseAndSetIfChanged(ref _formKey, value);
-            this.RaisePropertyChanged(nameof(FormIdDisplay));
-            this.RaisePropertyChanged(nameof(Header));
-        }
-    }
-
-    public string FormIdDisplay => _formKey.HasValue ? $"0x{_formKey.Value.ID:X8}" : "Pending";
+    public string FormIdDisplay => FormKey.HasValue ? $"0x{FormKey.Value.ID:X8}" : "Pending";
 
     public string Header => $"{Name} ({EditorId}) — FormID {FormIdDisplay}";
 

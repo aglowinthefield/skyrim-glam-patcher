@@ -14,6 +14,7 @@ using Boutique.Services;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using Serilog;
 
 namespace Boutique.ViewModels;
@@ -32,36 +33,17 @@ public class MainViewModel : ReactiveObject
     private readonly IArmorPreviewService _previewService;
     private int _activeLoadingOperations;
 
-    private ObservableCollection<string> _availablePlugins = new();
-    private bool _hasExistingPluginOutfits;
-    private bool _hasOutfitDrafts;
-    private bool _isCreatingOutfits;
-    private bool _isLoading;
-    private bool _isPatching;
     private string? _lastLoadedOutfitPlugin;
     private string? _lastLoadedSourcePlugin;
     private string? _lastLoadedTargetPlugin;
-    private ObservableCollection<ArmorMatchViewModel> _matches = new();
     private ObservableCollection<ArmorRecordViewModel> _outfitArmors = new();
     private ICollectionView? _outfitArmorsView;
-    private string _outfitSearchText = string.Empty;
-    private int _progressCurrent;
-    private int _progressTotal;
-    private int _selectedOutfitArmorCount;
     private IList _selectedOutfitArmors = new List<ArmorRecordViewModel>();
-    private string? _selectedOutfitPlugin;
     private IList _selectedSourceArmors = new List<ArmorRecordViewModel>();
-
-    private string? _selectedSourcePlugin;
-    private ArmorRecordViewModel? _selectedTargetArmor;
-    private string? _selectedTargetPlugin;
     private ObservableCollection<ArmorRecordViewModel> _sourceArmors = new();
     private ICollectionView? _sourceArmorsView;
-    private string _sourceSearchText = string.Empty;
-    private string _statusMessage = "Ready";
     private ObservableCollection<ArmorRecordViewModel> _targetArmors = new();
     private ICollectionView? _targetArmorsView;
-    private string _targetSearchText = string.Empty;
 
     public MainViewModel(
         IMutagenService mutagenService,
@@ -92,6 +74,18 @@ public class MainViewModel : ReactiveObject
         HasExistingPluginOutfits = _existingOutfits.Count > 0;
         _existingOutfits.CollectionChanged += (_, _) => HasExistingPluginOutfits = _existingOutfits.Count > 0;
 
+        // Update IsProgressActive when IsPatching or IsCreatingOutfits changes
+        this.WhenAnyValue(x => x.IsPatching, x => x.IsCreatingOutfits)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsProgressActive)));
+
+        // Refresh views when search text changes
+        this.WhenAnyValue(x => x.SourceSearchText)
+            .Subscribe(_ => SourceArmorsView?.Refresh());
+        this.WhenAnyValue(x => x.TargetSearchText)
+            .Subscribe(_ => TargetArmorsView?.Refresh());
+        this.WhenAnyValue(x => x.OutfitSearchText)
+            .Subscribe(_ => OutfitArmorsView?.Refresh());
+
         InitializeCommand = ReactiveCommand.CreateFromTask(InitializeAsync);
         CreatePatchCommand = ReactiveCommand.CreateFromTask(CreatePatchAsync,
             this.WhenAnyValue(x => x.Matches.Count, count => count > 0));
@@ -115,11 +109,6 @@ public class MainViewModel : ReactiveObject
         CreateOutfitCommand = ReactiveCommand.CreateFromTask(CreateOutfitAsync, canCreateOutfit);
         SaveOutfitsCommand = ReactiveCommand.CreateFromTask(SaveOutfitsAsync, canSaveOutfits);
 
-        // var canLoadTargetPlugin =
-        //     this.WhenAnyValue(x => x.SelectedTargetPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
-        // LoadTargetPluginCommand =
-        //     ReactiveCommand.CreateFromTask(() => LoadTargetPluginAsync(forceOutfitReload: true), canLoadTargetPlugin);
-
         var canLoadOutfitPlugin =
             this.WhenAnyValue(x => x.SelectedOutfitPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
         LoadOutfitPluginCommand =
@@ -137,11 +126,7 @@ public class MainViewModel : ReactiveObject
     public SettingsViewModel Settings { get; }
     public DistributionViewModel Distribution { get; }
 
-    public ObservableCollection<string> AvailablePlugins
-    {
-        get => _availablePlugins;
-        set => this.RaiseAndSetIfChanged(ref _availablePlugins, value);
-    }
+    [Reactive] public ObservableCollection<string> AvailablePlugins { get; set; } = new();
 
     public ObservableCollection<ArmorRecordViewModel> SourceArmors
     {
@@ -163,31 +148,10 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    public ObservableCollection<ArmorMatchViewModel> Matches
-    {
-        get => _matches;
-        set => this.RaiseAndSetIfChanged(ref _matches, value);
-    }
+    [Reactive] public ObservableCollection<ArmorMatchViewModel> Matches { get; set; } = new();
 
-    public string SourceSearchText
-    {
-        get => _sourceSearchText;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _sourceSearchText, value);
-            SourceArmorsView?.Refresh();
-        }
-    }
-
-    public string TargetSearchText
-    {
-        get => _targetSearchText;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _targetSearchText, value);
-            TargetArmorsView?.Refresh();
-        }
-    }
+    [Reactive] public string SourceSearchText { get; set; } = string.Empty;
+    [Reactive] public string TargetSearchText { get; set; } = string.Empty;
 
     public ObservableCollection<ArmorRecordViewModel> OutfitArmors
     {
@@ -209,15 +173,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    public string OutfitSearchText
-    {
-        get => _outfitSearchText;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _outfitSearchText, value);
-            OutfitArmorsView?.Refresh();
-        }
-    }
+    [Reactive] public string OutfitSearchText { get; set; } = string.Empty;
 
     public IList SelectedOutfitArmors
     {
@@ -233,12 +189,9 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    public int SelectedOutfitArmorCount
-    {
-        get => _selectedOutfitArmorCount;
-        private set => this.RaiseAndSetIfChanged(ref _selectedOutfitArmorCount, value);
-    }
+    [Reactive] public int SelectedOutfitArmorCount { get; private set; }
 
+    private string? _selectedOutfitPlugin;
     public string? SelectedOutfitPlugin
     {
         get => _selectedOutfitPlugin;
@@ -270,27 +223,11 @@ public class MainViewModel : ReactiveObject
 
     public ReadOnlyObservableCollection<ExistingOutfitViewModel> ExistingOutfits { get; }
 
-    public bool IsCreatingOutfits
-    {
-        get => _isCreatingOutfits;
-        private set
-        {
-            if (this.RaiseAndSetIfChanged(ref _isCreatingOutfits, value))
-                this.RaisePropertyChanged(nameof(IsProgressActive));
-        }
-    }
+    [Reactive] public bool IsCreatingOutfits { get; private set; }
 
-    public bool HasOutfitDrafts
-    {
-        get => _hasOutfitDrafts;
-        private set => this.RaiseAndSetIfChanged(ref _hasOutfitDrafts, value);
-    }
+    [Reactive] public bool HasOutfitDrafts { get; private set; }
 
-    public bool HasExistingPluginOutfits
-    {
-        get => _hasExistingPluginOutfits;
-        private set => this.RaiseAndSetIfChanged(ref _hasExistingPluginOutfits, value);
-    }
+    [Reactive] public bool HasExistingPluginOutfits { get; private set; }
 
     public IList SelectedSourceArmors
     {
@@ -326,11 +263,7 @@ public class MainViewModel : ReactiveObject
 
     private bool HasSourceSelection => _selectedSourceArmors.OfType<ArmorRecordViewModel>().Any();
 
-    public ArmorRecordViewModel? SelectedTargetArmor
-    {
-        get => _selectedTargetArmor;
-        set => this.RaiseAndSetIfChanged(ref _selectedTargetArmor, value);
-    }
+    [Reactive] public ArmorRecordViewModel? SelectedTargetArmor { get; set; }
 
     public ICollectionView? SourceArmorsView
     {
@@ -352,6 +285,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    private string? _selectedSourcePlugin;
     public string? SelectedSourcePlugin
     {
         get => _selectedSourcePlugin;
@@ -375,6 +309,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    private string? _selectedTargetPlugin;
     public string? SelectedTargetPlugin
     {
         get => _selectedTargetPlugin;
@@ -401,40 +336,17 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    public bool IsLoading
-    {
-        get => _isLoading;
-        set => this.RaiseAndSetIfChanged(ref _isLoading, value);
-    }
+    [Reactive] public bool IsLoading { get; set; }
 
-    public bool IsPatching
-    {
-        get => _isPatching;
-        set
-        {
-            if (this.RaiseAndSetIfChanged(ref _isPatching, value)) this.RaisePropertyChanged(nameof(IsProgressActive));
-        }
-    }
+    [Reactive] public bool IsPatching { get; set; }
 
     public bool IsProgressActive => IsPatching || IsCreatingOutfits;
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
-    }
+    [Reactive] public string StatusMessage { get; set; } = "Ready";
 
-    public int ProgressCurrent
-    {
-        get => _progressCurrent;
-        set => this.RaiseAndSetIfChanged(ref _progressCurrent, value);
-    }
+    [Reactive] public int ProgressCurrent { get; set; }
 
-    public int ProgressTotal
-    {
-        get => _progressTotal;
-        set => this.RaiseAndSetIfChanged(ref _progressTotal, value);
-    }
+    [Reactive] public int ProgressTotal { get; set; }
 
     public ICommand InitializeCommand { get; }
     public ICommand CreatePatchCommand { get; }
@@ -462,7 +374,7 @@ public class MainViewModel : ReactiveObject
 
         var outfits = (await _mutagenService.LoadOutfitsFromPluginAsync(plugin)).ToList();
 
-        if (!string.Equals(_selectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(SelectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
             return 0;
 
         var linkCache = _mutagenService.LinkCache;
@@ -602,7 +514,7 @@ public class MainViewModel : ReactiveObject
             StatusMessage = $"Copied {copied} existing outfit(s) into the queue.";
             _logger.Information("Copied {CopiedCount} existing outfit(s) into the queue from plugin {Plugin}.",
                 copied,
-                _selectedOutfitPlugin ?? "<none>");
+                SelectedOutfitPlugin ?? "<none>");
         }
         else
         {
@@ -908,7 +820,7 @@ public class MainViewModel : ReactiveObject
         {
             var armors = await _mutagenService.LoadArmorsFromPluginAsync(plugin);
 
-            if (!string.Equals(_selectedSourcePlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(SelectedSourcePlugin, plugin, StringComparison.OrdinalIgnoreCase))
                 return;
 
             SourceArmors = new ObservableCollection<ArmorRecordViewModel>(
@@ -927,7 +839,7 @@ public class MainViewModel : ReactiveObject
         }
         catch (Exception ex)
         {
-            if (string.Equals(_selectedSourcePlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(SelectedSourcePlugin, plugin, StringComparison.OrdinalIgnoreCase))
             {
                 StatusMessage = $"Error loading source armors: {ex.Message}";
                 _logger.Error(ex, "Error loading source armors from {Plugin}", plugin);
@@ -955,7 +867,7 @@ public class MainViewModel : ReactiveObject
         {
             var armors = await _mutagenService.LoadArmorsFromPluginAsync(plugin);
 
-            if (!string.Equals(_selectedTargetPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(SelectedTargetPlugin, plugin, StringComparison.OrdinalIgnoreCase))
                 return;
 
             TargetArmors = new ObservableCollection<ArmorRecordViewModel>(
@@ -973,7 +885,7 @@ public class MainViewModel : ReactiveObject
         }
         catch (Exception ex)
         {
-            if (string.Equals(_selectedTargetPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(SelectedTargetPlugin, plugin, StringComparison.OrdinalIgnoreCase))
             {
                 StatusMessage = $"Error loading target armors: {ex.Message}";
                 _logger.Error(ex, "Error loading target armors from {Plugin}", plugin);
@@ -1005,7 +917,7 @@ public class MainViewModel : ReactiveObject
         {
             var armors = await _mutagenService.LoadArmorsFromPluginAsync(plugin);
 
-            if (!string.Equals(_selectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(SelectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
                 return;
 
             OutfitArmors = new ObservableCollection<ArmorRecordViewModel>(
@@ -1031,7 +943,7 @@ public class MainViewModel : ReactiveObject
         }
         catch (Exception ex)
         {
-            if (string.Equals(_selectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(SelectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
             {
                 StatusMessage = $"Error loading outfit armors: {ex.Message}";
                 _logger.Error(ex, "Error loading outfit armors from {Plugin}", plugin);
@@ -1482,8 +1394,6 @@ public class MainViewModel : ReactiveObject
 
 public class ArmorMatchViewModel : ReactiveObject
 {
-    private ArmorRecordViewModel? _target;
-
     public ArmorMatchViewModel(
         ArmorMatch match,
         ArmorRecordViewModel source,
@@ -1503,15 +1413,7 @@ public class ArmorMatchViewModel : ReactiveObject
     public ArmorMatch Match { get; }
     public ArmorRecordViewModel Source { get; }
 
-    public ArmorRecordViewModel? Target
-    {
-        get => _target;
-        private set
-        {
-            this.RaiseAndSetIfChanged(ref _target, value);
-            RefreshState();
-        }
-    }
+    [Reactive] public ArmorRecordViewModel? Target { get; private set; }
 
     public bool HasTarget => Match.IsGlamOnly || Target != null;
     public bool IsGlamOnly => Match.IsGlamOnly;
@@ -1565,6 +1467,7 @@ public class ArmorMatchViewModel : ReactiveObject
         Match.IsGlamOnly = false;
         Match.TargetArmor = target.Armor;
         Target = target;
+        RefreshState();
     }
 
     private void RefreshState()

@@ -16,6 +16,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using Serilog;
 
 namespace Boutique.ViewModels;
@@ -44,9 +45,9 @@ public class DistributionViewModel : ReactiveObject
     /// </summary>
     public SettingsViewModel Settings => _settings;
 
-    private ObservableCollection<DistributionFileViewModel> _files = new();
     private ObservableCollection<DistributionEntryViewModel> _distributionEntries = new();
     private bool _isBulkLoading;
+    private bool _outfitsLoaded;
     
     private void OnDistributionEntriesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
@@ -87,34 +88,6 @@ public class DistributionViewModel : ReactiveObject
     }
     
     private int DistributionEntriesCount => _distributionEntries.Count;
-    private ObservableCollection<NpcRecordViewModel> _availableNpcs = new();
-    private ObservableCollection<IOutfitGetter> _availableOutfits = new();
-    private bool _outfitsLoaded;
-    private ObservableCollection<DistributionFileSelectionItem> _availableDistributionFiles = new();
-    private bool _isLoading;
-    private DistributionFileViewModel? _selectedFile;
-    private DistributionFileSelectionItem? _selectedDistributionFile;
-    private DistributionEntryViewModel? _selectedEntry;
-    private string _statusMessage = "Distribution files not loaded.";
-    private string _lineFilter = string.Empty;
-    private string _distributionFilePath = string.Empty;
-    private string _newFileName = string.Empty;
-    private bool _isCreatingNewFile;
-    private string _npcSearchText = string.Empty;
-    private string _distributionPreviewText = string.Empty;
-    private ObservableCollection<NpcRecordViewModel> _filteredNpcs = new();
-    private bool _hasConflicts;
-    private bool _conflictsResolvedByFilename;
-    private string _conflictSummary = string.Empty;
-    private string _suggestedFileName = string.Empty;
-    
-    // NPCs tab fields
-    private int _selectedTabIndex;
-    private ObservableCollection<NpcOutfitAssignmentViewModel> _npcOutfitAssignments = new();
-    private NpcOutfitAssignmentViewModel? _selectedNpcAssignment;
-    private string _npcOutfitSearchText = string.Empty;
-    private ObservableCollection<NpcOutfitAssignmentViewModel> _filteredNpcOutfitAssignments = new();
-    private string _selectedNpcOutfitContents = string.Empty;
 
     public DistributionViewModel(
         IDistributionDiscoveryService discoveryService,
@@ -217,37 +190,19 @@ public class DistributionViewModel : ReactiveObject
                     Task.Run(() => ScanNpcOutfitsAsync());
                 }
             });
+
+        // Update FilteredLines when SelectedFile or LineFilter changes
+        this.WhenAnyValue(vm => vm.SelectedFile, vm => vm.LineFilter)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(FilteredLines)));
     }
 
-    public ObservableCollection<DistributionFileViewModel> Files
-    {
-        get => _files;
-        private set => this.RaiseAndSetIfChanged(ref _files, value);
-    }
+    [Reactive] public ObservableCollection<DistributionFileViewModel> Files { get; private set; } = new();
 
-    public DistributionFileViewModel? SelectedFile
-    {
-        get => _selectedFile;
-        set
-        {
-            var previous = _selectedFile;
-            this.RaiseAndSetIfChanged(ref _selectedFile, value);
-            if (!Equals(previous, value))
-                this.RaisePropertyChanged(nameof(FilteredLines));
-        }
-    }
+    [Reactive] public DistributionFileViewModel? SelectedFile { get; set; }
 
-    public bool IsLoading
-    {
-        get => _isLoading;
-        private set => this.RaiseAndSetIfChanged(ref _isLoading, value);
-    }
+    [Reactive] public bool IsLoading { get; private set; }
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        private set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
-    }
+    [Reactive] public string StatusMessage { get; private set; } = "Distribution files not loaded.";
 
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
     public ReactiveCommand<DistributionLine, Unit> PreviewLineCommand { get; }
@@ -266,17 +221,7 @@ public class DistributionViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ScanNpcOutfitsCommand { get; }
     public ReactiveCommand<NpcOutfitAssignmentViewModel, Unit> PreviewNpcOutfitCommand { get; }
 
-    public string LineFilter
-    {
-        get => _lineFilter;
-        set
-        {
-            var previous = _lineFilter;
-            this.RaiseAndSetIfChanged(ref _lineFilter, value ?? string.Empty);
-            if (!string.Equals(previous, _lineFilter, StringComparison.OrdinalIgnoreCase))
-                this.RaisePropertyChanged(nameof(FilteredLines));
-        }
-    }
+    [Reactive] public string LineFilter { get; set; } = string.Empty;
 
     public IEnumerable<DistributionLine> FilteredLines
     {
@@ -315,6 +260,7 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
+    private DistributionEntryViewModel? _selectedEntry;
     public DistributionEntryViewModel? SelectedEntry
     {
         get => _selectedEntry;
@@ -336,24 +282,13 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
-    public ObservableCollection<NpcRecordViewModel> AvailableNpcs
-    {
-        get => _availableNpcs;
-        private set => this.RaiseAndSetIfChanged(ref _availableNpcs, value);
-    }
+    [Reactive] public ObservableCollection<NpcRecordViewModel> AvailableNpcs { get; private set; } = new();
 
-    public ObservableCollection<IOutfitGetter> AvailableOutfits
-    {
-        get => _availableOutfits;
-        private set => this.RaiseAndSetIfChanged(ref _availableOutfits, value);
-    }
+    [Reactive] public ObservableCollection<IOutfitGetter> AvailableOutfits { get; private set; } = new();
 
-    public ObservableCollection<DistributionFileSelectionItem> AvailableDistributionFiles
-    {
-        get => _availableDistributionFiles;
-        private set => this.RaiseAndSetIfChanged(ref _availableDistributionFiles, value);
-    }
+    [Reactive] public ObservableCollection<DistributionFileSelectionItem> AvailableDistributionFiles { get; private set; } = new();
 
+    private DistributionFileSelectionItem? _selectedDistributionFile;
     public DistributionFileSelectionItem? SelectedDistributionFile
     {
         get => _selectedDistributionFile;
@@ -411,19 +346,11 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
-    public bool IsCreatingNewFile
-    {
-        get => _isCreatingNewFile;
-        private set
-        {
-            this.RaiseAndSetIfChanged(ref _isCreatingNewFile, value);
-            // Re-detect conflicts when switching between new file / existing file mode
-            DetectConflicts();
-        }
-    }
+    [Reactive] public bool IsCreatingNewFile { get; private set; }
 
     public bool ShowNewFileNameInput => IsCreatingNewFile;
 
+    private string _newFileName = string.Empty;
     public string NewFileName
     {
         get => _newFileName;
@@ -439,43 +366,20 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
-    public string DistributionFilePath
-    {
-        get => _distributionFilePath;
-        private set => this.RaiseAndSetIfChanged(ref _distributionFilePath, value);
-    }
+    [Reactive] public string DistributionFilePath { get; private set; } = string.Empty;
 
-    public string NpcSearchText
-    {
-        get => _npcSearchText;
-        set => this.RaiseAndSetIfChanged(ref _npcSearchText, value ?? string.Empty);
-    }
+    [Reactive] public string NpcSearchText { get; set; } = string.Empty;
 
-    public string DistributionPreviewText
-    {
-        get => _distributionPreviewText;
-        private set => this.RaiseAndSetIfChanged(ref _distributionPreviewText, value);
-    }
+    [Reactive] public string DistributionPreviewText { get; private set; } = string.Empty;
 
-    public ObservableCollection<NpcRecordViewModel> FilteredNpcs
-    {
-        get => _filteredNpcs;
-        private set => this.RaiseAndSetIfChanged(ref _filteredNpcs, value);
-    }
+    [Reactive] public ObservableCollection<NpcRecordViewModel> FilteredNpcs { get; private set; } = new();
 
     // NPCs tab properties
-    public int SelectedTabIndex
-    {
-        get => _selectedTabIndex;
-        set => this.RaiseAndSetIfChanged(ref _selectedTabIndex, value);
-    }
+    [Reactive] public int SelectedTabIndex { get; set; }
 
-    public ObservableCollection<NpcOutfitAssignmentViewModel> NpcOutfitAssignments
-    {
-        get => _npcOutfitAssignments;
-        private set => this.RaiseAndSetIfChanged(ref _npcOutfitAssignments, value);
-    }
+    [Reactive] public ObservableCollection<NpcOutfitAssignmentViewModel> NpcOutfitAssignments { get; private set; } = new();
 
+    private NpcOutfitAssignmentViewModel? _selectedNpcAssignment;
     public NpcOutfitAssignmentViewModel? SelectedNpcAssignment
     {
         get => _selectedNpcAssignment;
@@ -497,61 +401,33 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
-    public string NpcOutfitSearchText
-    {
-        get => _npcOutfitSearchText;
-        set => this.RaiseAndSetIfChanged(ref _npcOutfitSearchText, value ?? string.Empty);
-    }
+    [Reactive] public string NpcOutfitSearchText { get; set; } = string.Empty;
 
-    public ObservableCollection<NpcOutfitAssignmentViewModel> FilteredNpcOutfitAssignments
-    {
-        get => _filteredNpcOutfitAssignments;
-        private set => this.RaiseAndSetIfChanged(ref _filteredNpcOutfitAssignments, value);
-    }
+    [Reactive] public ObservableCollection<NpcOutfitAssignmentViewModel> FilteredNpcOutfitAssignments { get; private set; } = new();
 
-    public string SelectedNpcOutfitContents
-    {
-        get => _selectedNpcOutfitContents;
-        private set => this.RaiseAndSetIfChanged(ref _selectedNpcOutfitContents, value);
-    }
+    [Reactive] public string SelectedNpcOutfitContents { get; private set; } = string.Empty;
 
     public bool IsInitialized => _mutagenService.IsInitialized;
 
     /// <summary>
     /// Indicates whether the current distribution entries have conflicts with existing files.
     /// </summary>
-    public bool HasConflicts
-    {
-        get => _hasConflicts;
-        private set => this.RaiseAndSetIfChanged(ref _hasConflicts, value);
-    }
+    [Reactive] public bool HasConflicts { get; private set; }
 
     /// <summary>
     /// Indicates whether conflicts exist but are resolved by the current filename ordering.
     /// </summary>
-    public bool ConflictsResolvedByFilename
-    {
-        get => _conflictsResolvedByFilename;
-        private set => this.RaiseAndSetIfChanged(ref _conflictsResolvedByFilename, value);
-    }
+    [Reactive] public bool ConflictsResolvedByFilename { get; private set; }
 
     /// <summary>
     /// Summary text describing the detected conflicts.
     /// </summary>
-    public string ConflictSummary
-    {
-        get => _conflictSummary;
-        private set => this.RaiseAndSetIfChanged(ref _conflictSummary, value);
-    }
+    [Reactive] public string ConflictSummary { get; private set; } = string.Empty;
 
     /// <summary>
     /// The suggested filename with Z-prefix to ensure proper load order.
     /// </summary>
-    public string SuggestedFileName
-    {
-        get => _suggestedFileName;
-        private set => this.RaiseAndSetIfChanged(ref _suggestedFileName, value);
-    }
+    [Reactive] public string SuggestedFileName { get; private set; } = string.Empty;
 
     public async Task RefreshAsync()
     {
@@ -1741,10 +1617,10 @@ public class DistributionViewModel : ReactiveObject
         }
         
         // Update the collection in-place to preserve checkbox state
-        _filteredNpcs.Clear();
+        FilteredNpcs.Clear();
         foreach (var npc in filtered)
         {
-            _filteredNpcs.Add(npc);
+            FilteredNpcs.Add(npc);
         }
     }
 
@@ -1917,10 +1793,10 @@ public class DistributionViewModel : ReactiveObject
                 a.ModDisplayName.ToLowerInvariant().Contains(term));
         }
 
-        _filteredNpcOutfitAssignments.Clear();
+        FilteredNpcOutfitAssignments.Clear();
         foreach (var assignment in filtered)
         {
-            _filteredNpcOutfitAssignments.Add(assignment);
+            FilteredNpcOutfitAssignments.Add(assignment);
         }
     }
 

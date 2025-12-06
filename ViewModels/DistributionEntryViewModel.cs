@@ -6,14 +6,13 @@ using Boutique.Models;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
 public class DistributionEntryViewModel : ReactiveObject
 {
-    private IOutfitGetter? _selectedOutfit;
     private ObservableCollection<NpcRecordViewModel> _selectedNpcs = new();
-    private bool _isSelected;
 
     public DistributionEntryViewModel(
         DistributionEntry entry,
@@ -37,24 +36,16 @@ public class DistributionEntryViewModel : ReactiveObject
             }
         }
 
+        // Sync SelectedOutfit changes back to Entry
+        this.WhenAnyValue(x => x.SelectedOutfit)
+            .Subscribe(outfit => Entry.Outfit = outfit);
+
         RemoveCommand = ReactiveCommand.Create(() => removeAction?.Invoke(this));
     }
 
     public DistributionEntry Entry { get; }
 
-    public IOutfitGetter? SelectedOutfit
-    {
-        get => _selectedOutfit;
-        set
-        {
-            // Force update even if "equal" by FormKey - we need the exact instance reference
-            // for ComboBox binding to work correctly
-            _selectedOutfit = value;
-            this.RaisePropertyChanged(nameof(SelectedOutfit));
-            if (Entry != null)
-                Entry.Outfit = value;
-        }
-    }
+    [Reactive] public IOutfitGetter? SelectedOutfit { get; set; }
 
     public ObservableCollection<NpcRecordViewModel> SelectedNpcs
     {
@@ -68,11 +59,7 @@ public class DistributionEntryViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => this.RaiseAndSetIfChanged(ref _isSelected, value);
-    }
+    [Reactive] public bool IsSelected { get; set; }
 
     public void UpdateEntryNpcs()
     {
@@ -104,4 +91,3 @@ public class DistributionEntryViewModel : ReactiveObject
         }
     }
 }
-

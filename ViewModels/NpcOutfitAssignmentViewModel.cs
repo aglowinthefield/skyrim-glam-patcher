@@ -3,13 +3,13 @@ using System.Linq;
 using Boutique.Models;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
 public class NpcOutfitAssignmentViewModel : ReactiveObject
 {
     private readonly NpcOutfitAssignment _assignment;
-    private bool _isSelected;
 
     public NpcOutfitAssignmentViewModel(NpcOutfitAssignment assignment)
     {
@@ -39,11 +39,7 @@ public class NpcOutfitAssignmentViewModel : ReactiveObject
     public IReadOnlyList<OutfitDistribution> Distributions => _assignment.Distributions;
 
     // Selection state for DataGrid
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => this.RaiseAndSetIfChanged(ref _isSelected, value);
-    }
+    [Reactive] public bool IsSelected { get; set; }
 
     /// <summary>
     /// Gets a summary of the conflict (e.g., "2 files override")

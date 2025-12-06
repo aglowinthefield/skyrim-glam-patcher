@@ -2,6 +2,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
@@ -9,8 +10,6 @@ public class ArmorRecordViewModel : ReactiveObject
 {
     private readonly ILinkCache? _linkCache;
     private readonly string _searchCache;
-    private bool _isMapped;
-    private bool _isSlotCompatible = true;
 
     public ArmorRecordViewModel(IArmorGetter armor, ILinkCache? linkCache = null)
     {
@@ -20,6 +19,10 @@ public class ArmorRecordViewModel : ReactiveObject
         FormIdDisplay = $"0x{FormIdSortable:X8}";
 
         _searchCache = $"{DisplayName} {EditorID} {ModDisplayName} {FormIdDisplay} {SlotSummary}".ToLowerInvariant();
+
+        // Update SlotCompatibilityPriority when IsSlotCompatible changes
+        this.WhenAnyValue(x => x.IsSlotCompatible)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(SlotCompatibilityPriority)));
     }
 
     public IArmorGetter Armor { get; }
@@ -81,26 +84,14 @@ public class ArmorRecordViewModel : ReactiveObject
         }
     }
 
-    public int SlotCompatibilityPriority => _isSlotCompatible ? 0 : 1;
+    public int SlotCompatibilityPriority => IsSlotCompatible ? 0 : 1;
 
-    public bool IsSlotCompatible
-    {
-        get => _isSlotCompatible;
-        set
-        {
-            if (this.RaiseAndSetIfChanged(ref _isSlotCompatible, value))
-                this.RaisePropertyChanged(nameof(SlotCompatibilityPriority));
-        }
-    }
+    [Reactive] public bool IsSlotCompatible { get; set; } = true;
 
     public string FormKeyString => Armor.FormKey.ToString();
     public string SummaryLine => $"{DisplayName} ({SlotSummary}) ({FormIdDisplay}) ({ModDisplayName})";
 
-    public bool IsMapped
-    {
-        get => _isMapped;
-        set => this.RaiseAndSetIfChanged(ref _isMapped, value);
-    }
+    [Reactive] public bool IsMapped { get; set; }
 
     public bool MatchesSearch(string searchTerm)
     {
