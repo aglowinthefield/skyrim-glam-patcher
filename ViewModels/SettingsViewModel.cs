@@ -1,18 +1,20 @@
 using System.IO;
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Boutique.Models;
 using Microsoft.Win32;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
 /// <summary>
 /// Simple relay command that doesn't use ReactiveUI to avoid threading issues with WPF dialogs.
 /// </summary>
-public class RelayCommand : ICommand
+public class RelayCommand(Action execute) : ICommand
 {
-    private readonly Action _execute;
-    public RelayCommand(Action execute) => _execute = execute;
+    private readonly Action _execute = execute;
+
 #pragma warning disable CS0067 // Event is never used - required by ICommand interface
     public event EventHandler? CanExecuteChanged;
 #pragma warning restore CS0067
@@ -23,19 +25,28 @@ public class RelayCommand : ICommand
 public class SettingsViewModel : ReactiveObject
 {
     private readonly PatcherSettings _settings;
-    private string _detectionSource;
-    private bool _isRunningFromMO2;
-    private string _outputPatchPath;
-    private string _patchFileName;
-    private string _skyrimDataPath;
 
     public SettingsViewModel(PatcherSettings settings)
     {
         _settings = settings;
-        _skyrimDataPath = settings.SkyrimDataPath;
-        _outputPatchPath = settings.OutputPatchPath;
-        _patchFileName = settings.PatchFileName;
-        _detectionSource = "";
+
+        // Initialize from settings
+        SkyrimDataPath = settings.SkyrimDataPath;
+        OutputPatchPath = settings.OutputPatchPath;
+        PatchFileName = settings.PatchFileName;
+
+        // Sync property changes back to the settings model
+        this.WhenAnyValue(x => x.SkyrimDataPath)
+            .Skip(1) // Skip initial value to avoid double-setting
+            .Subscribe(v => _settings.SkyrimDataPath = v);
+
+        this.WhenAnyValue(x => x.OutputPatchPath)
+            .Skip(1)
+            .Subscribe(v => _settings.OutputPatchPath = v);
+
+        this.WhenAnyValue(x => x.PatchFileName)
+            .Skip(1)
+            .Subscribe(v => _settings.PatchFileName = v);
 
         // Use simple RelayCommand instead of ReactiveCommand to avoid threading issues
         BrowseDataPathCommand = new RelayCommand(BrowseDataPath);
@@ -43,50 +54,14 @@ public class SettingsViewModel : ReactiveObject
         AutoDetectPathCommand = new RelayCommand(AutoDetectPath);
 
         // Auto-detect on creation if path is empty
-        if (string.IsNullOrEmpty(_skyrimDataPath)) AutoDetectPath();
+        if (string.IsNullOrEmpty(SkyrimDataPath)) AutoDetectPath();
     }
 
-    public bool IsRunningFromMO2
-    {
-        get => _isRunningFromMO2;
-        set => this.RaiseAndSetIfChanged(ref _isRunningFromMO2, value);
-    }
-
-    public string DetectionSource
-    {
-        get => _detectionSource;
-        set => this.RaiseAndSetIfChanged(ref _detectionSource, value);
-    }
-
-    public string SkyrimDataPath
-    {
-        get => _skyrimDataPath;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _skyrimDataPath, value);
-            _settings.SkyrimDataPath = value;
-        }
-    }
-
-    public string OutputPatchPath
-    {
-        get => _outputPatchPath;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _outputPatchPath, value);
-            _settings.OutputPatchPath = value;
-        }
-    }
-
-    public string PatchFileName
-    {
-        get => _patchFileName;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _patchFileName, value);
-            _settings.PatchFileName = value;
-        }
-    }
+    [Reactive] public bool IsRunningFromMO2 { get; set; }
+    [Reactive] public string DetectionSource { get; set; } = "";
+    [Reactive] public string SkyrimDataPath { get; set; } = "";
+    [Reactive] public string OutputPatchPath { get; set; } = "";
+    [Reactive] public string PatchFileName { get; set; } = "";
 
     public string FullOutputPath => Path.Combine(OutputPatchPath, PatchFileName);
 

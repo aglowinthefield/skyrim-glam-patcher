@@ -73,8 +73,12 @@ public partial class App
             throw;
         }
 
-        // Check for updates
-        CheckForUpdates();
+        // Check for updates (deferred so the window renders first)
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500); // Let the UI render and initialize
+            Current.Dispatcher.Invoke(CheckForUpdates);
+        });
     }
 
     private static void CheckForUpdates()
