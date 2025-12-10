@@ -12,9 +12,10 @@ namespace Boutique.ViewModels;
 
 public enum DistributionTab
 {
-    Files = 0,
-    Edit = 1,
-    Npcs = 2
+    Create = 0,
+    Files = 1,
+    Npcs = 2,
+    Outfits = 3
 }
 
 public class DistributionViewModel : ReactiveObject
@@ -62,6 +63,15 @@ public class DistributionViewModel : ReactiveObject
             settings,
             logger);
 
+        OutfitsTab = new DistributionOutfitsTabViewModel(
+            npcScanningService,
+            npcOutfitResolutionService,
+            discoveryService,
+            armorPreviewService,
+            mutagenService,
+            settings,
+            logger);
+
         // Wire up preview interactions - forward tab previews to main preview
         FilesTab.ShowPreview.RegisterHandler(async interaction =>
         {
@@ -78,6 +88,11 @@ public class DistributionViewModel : ReactiveObject
             await ShowPreview.Handle(interaction.Input);
             interaction.SetOutput(Unit.Default);
         });
+        OutfitsTab.ShowPreview.RegisterHandler(async interaction =>
+        {
+            await ShowPreview.Handle(interaction.Input);
+            interaction.SetOutput(Unit.Default);
+        });
 
         // Wire up Files tab refresh to update Edit and NPCs tabs
         // Subscribe to Files collection changes to update other tabs
@@ -88,6 +103,7 @@ public class DistributionViewModel : ReactiveObject
                 EditTab.SetDistributionFiles(fileList);
                 EditTab.SetDistributionFilesInternal(fileList);
                 NpcsTab.SetDistributionFilesInternal(fileList);
+                OutfitsTab.SetDistributionFilesInternal(fileList);
                 // Notify parent bindings that Files collection changed
                 this.RaisePropertyChanged(nameof(Files));
             });
@@ -99,6 +115,7 @@ public class DistributionViewModel : ReactiveObject
             EditTab.SetDistributionFiles(fileList);
             EditTab.SetDistributionFilesInternal(fileList);
             NpcsTab.SetDistributionFilesInternal(fileList);
+            OutfitsTab.SetDistributionFilesInternal(fileList);
             // Notify parent bindings that Files collection changed
             this.RaisePropertyChanged(nameof(Files));
         };
@@ -197,13 +214,26 @@ public class DistributionViewModel : ReactiveObject
             .Subscribe(_ => this.RaisePropertyChanged(nameof(RaceSearchText)));
         NpcsTab.WhenAnyValue(vm => vm.NpcOutfitSearchText)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(NpcOutfitSearchText)));
+        OutfitsTab.WhenAnyValue(vm => vm.OutfitSearchText)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(OutfitSearchText)));
+        OutfitsTab.WhenAnyValue(vm => vm.SelectedOutfit)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(SelectedOutfit)));
+        OutfitsTab.WhenAnyValue(vm => vm.Outfits)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(Outfits)));
+        OutfitsTab.WhenAnyValue(vm => vm.FilteredOutfits)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(FilteredOutfits)));
+        OutfitsTab.WhenAnyValue(vm => vm.SelectedOutfitNpcAssignments)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(SelectedOutfitNpcAssignments)));
+        OutfitsTab.SelectedOutfitNpcAssignments.CollectionChanged += (sender, e) => 
+            this.RaisePropertyChanged(nameof(SelectedOutfitNpcAssignments));
 
         // Aggregate loading state from tabs
         this.WhenAnyValue(
             vm => vm.FilesTab.IsLoading,
             vm => vm.EditTab.IsLoading,
             vm => vm.NpcsTab.IsLoading,
-            (files, edit, npcs) => files || edit || npcs)
+            vm => vm.OutfitsTab.IsLoading,
+            (files, edit, npcs, outfits) => files || edit || npcs || outfits)
             .Subscribe(loading => IsLoading = loading);
 
         // Aggregate status messages from tabs (prioritize non-empty messages)
@@ -211,9 +241,11 @@ public class DistributionViewModel : ReactiveObject
             vm => vm.FilesTab.StatusMessage,
             vm => vm.EditTab.StatusMessage,
             vm => vm.NpcsTab.StatusMessage,
-            (files, edit, npcs) => 
+            vm => vm.OutfitsTab.StatusMessage,
+            (files, edit, npcs, outfits) => 
                 !string.IsNullOrWhiteSpace(edit) ? edit :
                 !string.IsNullOrWhiteSpace(npcs) ? npcs :
+                !string.IsNullOrWhiteSpace(outfits) ? outfits :
                 !string.IsNullOrWhiteSpace(files) ? files :
                 "Ready")
             .Subscribe(msg => StatusMessage = msg);
@@ -224,18 +256,9 @@ public class DistributionViewModel : ReactiveObject
             {
                 this.RaisePropertyChanged(nameof(IsEditMode));
 
-                if (index == (int)DistributionTab.Files)
+                if (index == (int)DistributionTab.Create)
                 {
-                    // Auto-refresh Files tab when selected if files haven't been loaded yet
-                    if (FilesTab.Files.Count == 0 && !FilesTab.IsLoading && !string.IsNullOrWhiteSpace(_settings.SkyrimDataPath))
-                    {
-                        _logger.Debug("Files tab selected, triggering auto-refresh");
-                        _ = FilesTab.RefreshCommand.Execute();
-                    }
-                }
-                else                 if (index == (int)DistributionTab.Edit)
-                {
-                    // Initialize Edit tab when selected - always update to ensure latest files
+                    // Initialize Create tab when selected - always update to ensure latest files
                     var fileList = FilesTab.Files.ToList();
                     EditTab.SetDistributionFiles(fileList);
                     EditTab.SetDistributionFilesInternal(fileList);
@@ -250,6 +273,15 @@ public class DistributionViewModel : ReactiveObject
                         }
                     }
                 }
+                else if (index == (int)DistributionTab.Files)
+                {
+                    // Auto-refresh Files tab when selected if files haven't been loaded yet
+                    if (FilesTab.Files.Count == 0 && !FilesTab.IsLoading && !string.IsNullOrWhiteSpace(_settings.SkyrimDataPath))
+                    {
+                        _logger.Debug("Files tab selected, triggering auto-refresh");
+                        _ = FilesTab.RefreshCommand.Execute();
+                    }
+                }
                 else if (index == (int)DistributionTab.Npcs)
                 {
                     // Update NPCs tab with files from Files tab
@@ -260,6 +292,18 @@ public class DistributionViewModel : ReactiveObject
                     {
                         _logger.Debug("NPCs tab selected, triggering auto-scan");
                         _ = NpcsTab.ScanNpcOutfitsCommand.Execute();
+                    }
+                }
+                else if (index == (int)DistributionTab.Outfits)
+                {
+                    // Update Outfits tab with files from Files tab
+                    OutfitsTab.SetDistributionFilesInternal(FilesTab.Files.ToList());
+                    
+                    // Auto-load outfits when Outfits tab is selected (if not already loaded)
+                    if (OutfitsTab.Outfits.Count == 0 && !OutfitsTab.IsLoading)
+                    {
+                        _logger.Debug("Outfits tab selected, triggering auto-load");
+                        _ = OutfitsTab.LoadOutfitsCommand.Execute();
                     }
                 }
             });
@@ -274,8 +318,8 @@ public class DistributionViewModel : ReactiveObject
     /// <summary>UI: TabControl SelectedIndex binding - controls which tab (Files/Edit/NPCs) is visible.</summary>
     [Reactive] public int SelectedTabIndex { get; set; }
 
-    /// <summary>Computed property indicating if Edit tab is currently selected.</summary>
-    public bool IsEditMode => SelectedTabIndex == (int)DistributionTab.Edit;
+    /// <summary>Computed property indicating if Create tab is currently selected.</summary>
+    public bool IsEditMode => SelectedTabIndex == (int)DistributionTab.Create;
 
     /// <summary>UI: ProgressBar visibility - true when any tab is loading (scanning files, loading data, etc.).</summary>
     [Reactive] public bool IsLoading { get; private set; }
@@ -291,6 +335,9 @@ public class DistributionViewModel : ReactiveObject
 
     /// <summary>Internal ViewModel for NPCs tab - not directly bound to UI.</summary>
     public DistributionNpcsTabViewModel NpcsTab { get; }
+
+    /// <summary>Internal ViewModel for Outfits tab - not directly bound to UI.</summary>
+    public DistributionOutfitsTabViewModel OutfitsTab { get; }
 
     /// <summary>Interaction for showing outfit preview windows (used by all tabs).</summary>
     public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
@@ -523,11 +570,44 @@ public class DistributionViewModel : ReactiveObject
     public ReactiveCommand<NpcOutfitAssignmentViewModel, Unit> PreviewNpcOutfitCommand => NpcsTab.PreviewNpcOutfitCommand;
 
     // ============================================================================
+    // OUTFITS TAB PROPERTIES
+    // ============================================================================
+    
+    /// <summary>UI: DataGrid in Outfits tab showing all outfits from the load order.</summary>
+    public ObservableCollection<OutfitRecordViewModel> Outfits => OutfitsTab.Outfits;
+    
+    /// <summary>UI: Selected row in Outfits tab DataGrid, used to show which NPCs it's distributed to.</summary>
+    public OutfitRecordViewModel? SelectedOutfit
+    {
+        get => OutfitsTab.SelectedOutfit;
+        set => OutfitsTab.SelectedOutfit = value;
+    }
+    
+    /// <summary>UI: Filtered outfits shown in DataGrid based on OutfitSearchText.</summary>
+    public ObservableCollection<OutfitRecordViewModel> FilteredOutfits => OutfitsTab.FilteredOutfits;
+    
+    /// <summary>UI: TextBox in Outfits tab for searching outfits by EditorID/FormKey/mod.</summary>
+    public string OutfitSearchText
+    {
+        get => OutfitsTab.OutfitSearchText;
+        set => OutfitsTab.OutfitSearchText = value;
+    }
+    
+    /// <summary>UI: List of NPCs that have the selected outfit distributed to them.</summary>
+    public ObservableCollection<NpcOutfitAssignmentViewModel> SelectedOutfitNpcAssignments => OutfitsTab.SelectedOutfitNpcAssignments;
+    
+    /// <summary>UI: "Load Outfits" button in Outfits tab to load outfits from load order.</summary>
+    public ReactiveCommand<Unit, Unit> LoadOutfitsCommand => OutfitsTab.LoadOutfitsCommand;
+    
+    /// <summary>UI: "Preview Outfit" button in Outfits tab to show 3D outfit preview.</summary>
+    public ReactiveCommand<OutfitRecordViewModel, Unit> PreviewOutfitCommand => OutfitsTab.PreviewOutfitCommand;
+
+    // ============================================================================
     // SHARED/UTILITY PROPERTIES
     // ============================================================================
     
     /// <summary>Indicates if MutagenService is initialized (used to enable/disable UI features).</summary>
-    public bool IsInitialized => EditTab.IsInitialized || NpcsTab.IsInitialized;
+    public bool IsInitialized => EditTab.IsInitialized || NpcsTab.IsInitialized || OutfitsTab.IsInitialized;
 
     /// <summary>UI: TextBlock at top showing the Skyrim data path being scanned.</summary>
     public string DataPath => _settings.SkyrimDataPath;

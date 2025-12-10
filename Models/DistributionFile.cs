@@ -3,7 +3,8 @@ namespace Boutique.Models;
 public enum DistributionFileType
 {
     Spid,
-    SkyPatcher
+    SkyPatcher,
+    Esp
 }
 
 public enum DistributionLineKind

@@ -18,6 +18,7 @@ public class DistributionFileTypeConverter : IValueConverter
             {
                 DistributionFileType.Spid => "SPID",
                 DistributionFileType.SkyPatcher => "SkyPatcher",
+                DistributionFileType.Esp => "ESP",
                 _ => value.ToString() ?? string.Empty
             };
         }

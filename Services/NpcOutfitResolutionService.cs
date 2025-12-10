@@ -81,7 +81,12 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
                 _logger.Debug("Built NPC Name lookup with {Count} entries", npcByName.Count);
 
-                // Process each file in order
+                // First, add ESP-provided outfits (processing order 0, so INI files win)
+                _logger.Debug("Scanning NPCs for ESP-provided default outfits...");
+                ProcessEspProvidedOutfits(linkCache, allNpcs, npcDistributions);
+                _logger.Debug("After processing ESP outfits: {NpcCount} unique NPCs with distributions", npcDistributions.Count);
+
+                // Process each file in order (starting at order 1, so they win over ESP)
                 for (int fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -90,7 +95,8 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                     _logger.Debug("Processing file {Index}/{Total}: {FileName}", 
                         fileIndex + 1, sortedFiles.Count, file.FileName);
                     
-                    ProcessDistributionFile(file, fileIndex, linkCache, npcByEditorId, npcByName, npcDistributions);
+                    // Processing order starts at 1 (ESP is 0)
+                    ProcessDistributionFile(file, fileIndex + 1, linkCache, npcByEditorId, npcByName, npcDistributions);
                     
                     _logger.Debug("After processing {FileName}: {NpcCount} unique NPCs with distributions",
                         file.FileName, npcDistributions.Count);
@@ -142,7 +148,12 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 // Build a dictionary of NPC FormKey -> list of distributions
                 var npcDistributions = new Dictionary<FormKey, List<OutfitDistribution>>();
 
-                // Process each file in order
+                // First, add ESP-provided outfits (processing order 0, so INI files win)
+                _logger.Debug("Scanning NPCs for ESP-provided default outfits...");
+                ProcessEspProvidedOutfitsFromFilterData(linkCache, npcFilterData, npcDistributions);
+                _logger.Debug("After processing ESP outfits: {NpcCount} unique NPCs with distributions", npcDistributions.Count);
+
+                // Process each file in order (starting at order 1, so they win over ESP)
                 for (int fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -151,7 +162,8 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                     _logger.Debug("Processing file {Index}/{Total}: {FileName}", 
                         fileIndex + 1, sortedFiles.Count, file.FileName);
                     
-                    ProcessDistributionFileWithFilters(file, fileIndex, linkCache, npcFilterData, npcDistributions);
+                    // Processing order starts at 1 (ESP is 0)
+                    ProcessDistributionFileWithFilters(file, fileIndex + 1, linkCache, npcFilterData, npcDistributions);
                     
                     _logger.Debug("After processing {FileName}: {NpcCount} unique NPCs with distributions",
                         file.FileName, npcDistributions.Count);
@@ -471,14 +483,30 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 .OrderBy(d => d.ProcessingOrder)
                 .ToList();
 
-            // Mark the winner (last one)
-            var winnerIndex = sortedDistributions.Count - 1;
+            // Filter out ESP distributions if there are INI distributions (INI wins)
+            // Only consider conflicts between INI files, not ESP vs INI
+            var iniDistributions = sortedDistributions
+                .Where(d => d.FileType != DistributionFileType.Esp)
+                .ToList();
+            
+            var hasIniDistributions = iniDistributions.Count > 0;
+            var distributionsToUse = hasIniDistributions ? iniDistributions : sortedDistributions;
+
+            // Mark the winner (last one in the filtered list)
+            var winnerIndex = distributionsToUse.Count - 1;
             var updatedDistributions = sortedDistributions
-                .Select((d, i) => d with { IsWinner = i == winnerIndex })
+                .Select((d, i) => 
+                {
+                    // Mark as winner if it's the last INI distribution, or if there are no INI distributions and it's the last overall
+                    var isWinner = hasIniDistributions 
+                        ? (d.FileType != DistributionFileType.Esp && i == sortedDistributions.IndexOf(distributionsToUse[winnerIndex]))
+                        : (i == sortedDistributions.Count - 1);
+                    return d with { IsWinner = isWinner };
+                })
                 .ToList();
 
             // Get the winning distribution
-            var winner = updatedDistributions[winnerIndex];
+            var winner = distributionsToUse[winnerIndex];
 
             // Get NPC info from filter data
             string? editorId = null;
@@ -492,6 +520,12 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 sourceMod = npcData.SourceMod;
             }
 
+            // Only count conflicts between INI files, not ESP vs INI
+            var iniOnlyDistributions = updatedDistributions
+                .Where(d => d.FileType != DistributionFileType.Esp)
+                .ToList();
+            var hasConflict = iniOnlyDistributions.Count > 1;
+
             assignments.Add(new NpcOutfitAssignment(
                 NpcFormKey: npcFormKey,
                 EditorId: editorId,
@@ -500,7 +534,7 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 FinalOutfitFormKey: winner.OutfitFormKey,
                 FinalOutfitEditorId: winner.OutfitEditorId,
                 Distributions: updatedDistributions,
-                HasConflict: updatedDistributions.Count > 1
+                HasConflict: hasConflict
             ));
         }
 
@@ -845,6 +879,110 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         _logger.Debug("SPID line resolved {Resolved}/{Total} NPCs", resolvedCount, npcIdentifiers.Count);
     }
 
+    private void ProcessEspProvidedOutfits(
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<INpcGetter> allNpcs,
+        Dictionary<FormKey, List<OutfitDistribution>> npcDistributions)
+    {
+        var espOutfitCount = 0;
+        
+        foreach (var npc in allNpcs)
+        {
+            // Check if NPC has a default outfit
+            var defaultOutfit = npc.DefaultOutfit;
+            if (defaultOutfit == null || defaultOutfit.IsNull)
+                continue;
+
+            // Resolve the outfit
+            if (!linkCache.TryResolve<IOutfitGetter>(defaultOutfit.FormKey, out var outfit))
+                continue;
+
+            var npcFormKey = npc.FormKey;
+            if (!npcDistributions.TryGetValue(npcFormKey, out var distributions))
+            {
+                distributions = new List<OutfitDistribution>();
+                npcDistributions[npcFormKey] = distributions;
+            }
+
+            // Get the plugin that defines this NPC
+            var sourcePlugin = npcFormKey.ModKey.FileName;
+            
+            distributions.Add(new OutfitDistribution(
+                FilePath: $"{sourcePlugin} (ESP)",
+                FileName: sourcePlugin,
+                FileType: DistributionFileType.Esp,
+                OutfitFormKey: outfit.FormKey,
+                OutfitEditorId: outfit.EditorID,
+                ProcessingOrder: 0, // ESP has lowest priority
+                IsWinner: false, // Will be determined later
+                RawLine: null,
+                TargetingDescription: "Default outfit from ESP",
+                Chance: 100,
+                TargetsAllNpcs: false,
+                UsesKeywordTargeting: false,
+                UsesFactionTargeting: false,
+                UsesRaceTargeting: false,
+                UsesTraitTargeting: false
+            ));
+            
+            espOutfitCount++;
+        }
+        
+        _logger.Debug("Found {Count} NPCs with ESP-provided default outfits", espOutfitCount);
+    }
+
+    private void ProcessEspProvidedOutfitsFromFilterData(
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        IReadOnlyList<NpcFilterData> allNpcs,
+        Dictionary<FormKey, List<OutfitDistribution>> npcDistributions)
+    {
+        var espOutfitCount = 0;
+        
+        foreach (var npcData in allNpcs)
+        {
+            // Check if NPC has a default outfit
+            var defaultOutfitFormKey = npcData.DefaultOutfitFormKey;
+            if (!defaultOutfitFormKey.HasValue || defaultOutfitFormKey.Value.IsNull)
+                continue;
+
+            // Resolve the outfit
+            if (!linkCache.TryResolve<IOutfitGetter>(defaultOutfitFormKey.Value, out var outfit))
+                continue;
+
+            var npcFormKey = npcData.FormKey;
+            if (!npcDistributions.TryGetValue(npcFormKey, out var distributions))
+            {
+                distributions = new List<OutfitDistribution>();
+                npcDistributions[npcFormKey] = distributions;
+            }
+
+            // Get the plugin that defines this NPC
+            var sourcePlugin = npcData.SourceMod.FileName;
+            
+            distributions.Add(new OutfitDistribution(
+                FilePath: $"{sourcePlugin} (ESP)",
+                FileName: sourcePlugin,
+                FileType: DistributionFileType.Esp,
+                OutfitFormKey: outfit.FormKey,
+                OutfitEditorId: outfit.EditorID ?? npcData.DefaultOutfitEditorId,
+                ProcessingOrder: 0, // ESP has lowest priority
+                IsWinner: false, // Will be determined later
+                RawLine: null,
+                TargetingDescription: "Default outfit from ESP",
+                Chance: 100,
+                TargetsAllNpcs: false,
+                UsesKeywordTargeting: false,
+                UsesFactionTargeting: false,
+                UsesRaceTargeting: false,
+                UsesTraitTargeting: false
+            ));
+            
+            espOutfitCount++;
+        }
+        
+        _logger.Debug("Found {Count} NPCs with ESP-provided default outfits", espOutfitCount);
+    }
+
     private List<NpcOutfitAssignment> BuildNpcOutfitAssignments(
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
@@ -860,14 +998,30 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 .OrderBy(d => d.ProcessingOrder)
                 .ToList();
 
-            // Mark the winner (last one)
-            var winnerIndex = sortedDistributions.Count - 1;
+            // Filter out ESP distributions if there are INI distributions (INI wins)
+            // Only consider conflicts between INI files, not ESP vs INI
+            var iniDistributions = sortedDistributions
+                .Where(d => d.FileType != DistributionFileType.Esp)
+                .ToList();
+            
+            var hasIniDistributions = iniDistributions.Count > 0;
+            var distributionsToUse = hasIniDistributions ? iniDistributions : sortedDistributions;
+
+            // Mark the winner (last one in the filtered list)
+            var winnerIndex = distributionsToUse.Count - 1;
             var updatedDistributions = sortedDistributions
-                .Select((d, i) => d with { IsWinner = i == winnerIndex })
+                .Select((d, i) => 
+                {
+                    // Mark as winner if it's the last INI distribution, or if there are no INI distributions and it's the last overall
+                    var isWinner = hasIniDistributions 
+                        ? (d.FileType != DistributionFileType.Esp && i == sortedDistributions.IndexOf(distributionsToUse[winnerIndex]))
+                        : (i == sortedDistributions.Count - 1);
+                    return d with { IsWinner = isWinner };
+                })
                 .ToList();
 
             // Get the winning distribution
-            var winner = updatedDistributions[winnerIndex];
+            var winner = distributionsToUse[winnerIndex];
 
             // Get NPC info
             string? editorId = null;
@@ -895,6 +1049,12 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 }
             }
 
+            // Only count conflicts between INI files, not ESP vs INI
+            var iniOnlyDistributions = updatedDistributions
+                .Where(d => d.FileType != DistributionFileType.Esp)
+                .ToList();
+            var hasConflict = iniOnlyDistributions.Count > 1;
+
             assignments.Add(new NpcOutfitAssignment(
                 NpcFormKey: npcFormKey,
                 EditorId: editorId,
@@ -903,7 +1063,7 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 FinalOutfitFormKey: winner.OutfitFormKey,
                 FinalOutfitEditorId: winner.OutfitEditorId,
                 Distributions: updatedDistributions,
-                HasConflict: updatedDistributions.Count > 1
+                HasConflict: hasConflict
             ));
         }
 
