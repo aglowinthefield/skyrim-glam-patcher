@@ -14,29 +14,38 @@ public class NpcOutfitAssignmentViewModel : ReactiveObject
         _assignment = assignment;
     }
 
+    /// <summary>The underlying assignment model.</summary>
     public NpcOutfitAssignment Assignment => _assignment;
 
-    // NPC properties
+    /// <summary>NPC FormKey.</summary>
     public FormKey NpcFormKey => _assignment.NpcFormKey;
+    /// <summary>NPC EditorID.</summary>
     public string? EditorId => _assignment.EditorId;
+    /// <summary>NPC display name.</summary>
     public string? Name => _assignment.Name;
+    /// <summary>Display name (Name if available, otherwise EditorID).</summary>
     public string DisplayName => _assignment.DisplayName;
+    /// <summary>FormKey as string.</summary>
     public string FormKeyString => _assignment.FormKeyString;
+    /// <summary>Source mod display name.</summary>
     public string ModDisplayName => _assignment.ModDisplayName;
 
-    // Outfit properties
+    /// <summary>Final resolved outfit FormKey.</summary>
     public FormKey? FinalOutfitFormKey => _assignment.FinalOutfitFormKey;
+    /// <summary>Final resolved outfit EditorID.</summary>
     public string? FinalOutfitEditorId => _assignment.FinalOutfitEditorId;
+    /// <summary>Final outfit display string.</summary>
     public string FinalOutfitDisplay => _assignment.FinalOutfitDisplay;
 
-    // Conflict info
+    /// <summary>Whether this NPC has conflicting outfit distributions.</summary>
     public bool HasConflict => _assignment.HasConflict;
+    /// <summary>Number of distributions affecting this NPC.</summary>
     public int DistributionCount => _assignment.Distributions.Count;
 
-    // Distributions for detail panel
+    /// <summary>All distributions for this NPC (for detail panel).</summary>
     public IReadOnlyList<OutfitDistribution> Distributions => _assignment.Distributions;
 
-    // Selection state for DataGrid
+    /// <summary>Selection state for DataGrid binding.</summary>
     [Reactive] public bool IsSelected { get; set; }
 
     /// <summary>

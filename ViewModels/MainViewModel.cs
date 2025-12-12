@@ -356,7 +356,7 @@ public class MainViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> SaveOutfitsCommand { get; }
 
-    // public ReactiveCommand<Unit, Unit> LoadTargetPluginCommand { get; }
+    /// <summary>Command to load outfit plugin.</summary>
     public ReactiveCommand<Unit, Unit> LoadOutfitPluginCommand { get; }
     public ReactiveCommand<Unit, Unit> CopyExistingOutfitsCommand { get; }
 

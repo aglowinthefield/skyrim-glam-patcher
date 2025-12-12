@@ -1254,7 +1254,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         }
     }
 
-    // Public method to trigger lazy loading when ComboBox opens
+    /// <summary>Triggers lazy loading of outfits when ComboBox opens.</summary>
     public void EnsureOutfitsLoaded()
     {
         if (!_outfitsLoaded)

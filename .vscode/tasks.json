@@ -121,6 +121,53 @@
         "focus": true,
         "clear": true
       }
+    },
+    {
+      "label": "analyze",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/Boutique.csproj",
+        "-property:GenerateFullPaths=true",
+        "-consoleloggerparameters:NoSummary"
+      ],
+      "problemMatcher": {
+        "owner": "csharp",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.+)\\((\\d+),(\\d+)\\):\\s+(error|warning)\\s+([A-Z]+\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "code": 5,
+          "message": 6
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      },
+      "group": "build"
+    },
+    {
+      "label": "format",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "format",
+        "${workspaceFolder}/Boutique.csproj"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      }
     }
   ],
   "inputs": [
@@ -132,4 +179,3 @@
     }
   ]
 }
-
