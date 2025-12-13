@@ -36,7 +36,15 @@ public class SpidFilterMatchingService
 
     public static IReadOnlyList<NpcFilterData> GetMatchingNpcs(IReadOnlyList<NpcFilterData> allNpcs, SpidDistributionFilter filter)
     {
-        return allNpcs.Where(npc => NpcMatchesFilter(npc, filter)).ToList();
+        // Fast path: if filter targets all NPCs with no exclusions, return all
+        if (filter.TargetsAllNpcs && filter.StringFilters.IsEmpty && filter.FormFilters.IsEmpty &&
+            filter.TraitFilters.IsEmpty && string.IsNullOrWhiteSpace(filter.LevelFilters))
+        {
+            return allNpcs.ToList();
+        }
+
+        // Use PLINQ for parallel filtering of large NPC lists
+        return allNpcs.AsParallel().Where(npc => NpcMatchesFilter(npc, filter)).ToList();
     }
 
     /// <summary>

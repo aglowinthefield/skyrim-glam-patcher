@@ -26,6 +26,8 @@ public class MutagenService(ILoggingService loggingService)
 
     public async Task InitializeAsync(string dataFolderPath)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         await Task.Run(() =>
         {
             DataFolderPath = dataFolderPath;
@@ -33,8 +35,13 @@ public class MutagenService(ILoggingService loggingService)
             // Try to create game environment
             try
             {
+                var envSw = System.Diagnostics.Stopwatch.StartNew();
                 _environment = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE);
+                _logger.Information("[PERF] GameEnvironment.Typical.Skyrim: {ElapsedMs}ms", envSw.ElapsedMilliseconds);
+
+                var cacheSw = System.Diagnostics.Stopwatch.StartNew();
                 LinkCache = _environment.LoadOrder.ToImmutableLinkCache();
+                _logger.Information("[PERF] ToImmutableLinkCache: {ElapsedMs}ms", cacheSw.ElapsedMilliseconds);
             }
             catch (Exception)
             {
@@ -44,6 +51,8 @@ public class MutagenService(ILoggingService loggingService)
             }
         });
 
+        _logger.Information("[PERF] MutagenService.InitializeAsync total: {ElapsedMs}ms", sw.ElapsedMilliseconds);
+
         // Notify listeners that initialization is complete
         Initialized?.Invoke(this, EventArgs.Empty);
     }
@@ -52,6 +61,8 @@ public class MutagenService(ILoggingService loggingService)
     {
         return await Task.Run(() =>
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             if (string.IsNullOrEmpty(DataFolderPath))
                 return Enumerable.Empty<string>();
 
@@ -61,9 +72,13 @@ public class MutagenService(ILoggingService loggingService)
                 .OrderBy(Path.GetFileName)
                 .ToList();
 
+            _logger.Information("[PERF] GetAvailablePluginsAsync: Found {Count} plugin files to scan", pluginFiles.Count);
+
             var armorPlugins = new List<string>();
+            var scannedCount = 0;
 
             foreach (var pluginPath in pluginFiles)
+            {
                 try
                 {
                     using var mod = SkyrimMod.CreateFromBinaryOverlay(pluginPath, SkyrimRelease.SkyrimSE);
@@ -79,7 +94,16 @@ public class MutagenService(ILoggingService loggingService)
                     // Ignore plugins that cannot be read; they will be omitted from the picker.
                 }
 
+                scannedCount++;
+                if (scannedCount % 100 == 0)
+                    _logger.Debug("[PERF] Scanned {Count}/{Total} plugins...", scannedCount, pluginFiles.Count);
+            }
+
             armorPlugins.Sort(StringComparer.OrdinalIgnoreCase);
+
+            _logger.Information("[PERF] GetAvailablePluginsAsync: Scanned {Total} plugins in {ElapsedMs}ms, found {ArmorCount} with armors/outfits",
+                pluginFiles.Count, sw.ElapsedMilliseconds, armorPlugins.Count);
+
             return armorPlugins;
         });
     }

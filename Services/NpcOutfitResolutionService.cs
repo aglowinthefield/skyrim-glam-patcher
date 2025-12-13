@@ -203,7 +203,7 @@ public class NpcOutfitResolutionService
             }
             else if (file.Type == DistributionFileType.SkyPatcher)
             {
-                ProcessSkyPatcherLineWithFilters(file, line, processingOrder, linkCache, allNpcs, npcDistributions, ref matchedNpcCount);
+                ProcessSkyPatcherLineWithFilters(file, line, processingOrder, linkCache, npcDistributions, ref matchedNpcCount);
             }
         }
 
@@ -287,23 +287,11 @@ public class NpcOutfitResolutionService
         DistributionLine line,
         int processingOrder,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
-        IReadOnlyList<NpcFilterData> allNpcs,
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions,
         ref int matchedNpcCount)
     {
         // SkyPatcher uses explicit NPC FormKeys, not filters
-        // Keep the existing parsing logic for SkyPatcher
         var results = new List<(FormKey NpcFormKey, FormKey OutfitFormKey, string? OutfitEditorId)>();
-
-        // Build lookup dictionaries for the old method
-        var npcByEditorId = allNpcs
-            .Where(n => !string.IsNullOrWhiteSpace(n.EditorId))
-            .GroupBy(n => n.EditorId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        var npcByName = allNpcs
-            .Where(n => !string.IsNullOrWhiteSpace(n.Name))
-            .GroupBy(n => n.Name!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         ParseSkyPatcherLineForFilteredResolution(line.RawText, linkCache, results);
 

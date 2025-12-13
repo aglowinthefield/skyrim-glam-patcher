@@ -132,12 +132,42 @@ public class GameDataCacheService
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-            // Load all data types in parallel
-            var npcsTask = Task.Run(() => LoadNpcs(linkCache));
-            var factionsTask = Task.Run(() => LoadFactions(linkCache));
-            var racesTask = Task.Run(() => LoadRaces(linkCache));
-            var keywordsTask = Task.Run(() => LoadKeywords(linkCache));
-            var outfitsTask = Task.Run(() => LoadOutfits(linkCache));
+            // Load all data types in parallel with individual timing
+            var npcsTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadNpcs(linkCache);
+                _logger.Information("[PERF] LoadNpcs: {ElapsedMs}ms ({Count} NPCs)", sw.ElapsedMilliseconds, result.Item1.Count);
+                return result;
+            });
+            var factionsTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadFactions(linkCache);
+                _logger.Information("[PERF] LoadFactions: {ElapsedMs}ms ({Count} factions)", sw.ElapsedMilliseconds, result.Count);
+                return result;
+            });
+            var racesTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadRaces(linkCache);
+                _logger.Information("[PERF] LoadRaces: {ElapsedMs}ms ({Count} races)", sw.ElapsedMilliseconds, result.Count);
+                return result;
+            });
+            var keywordsTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadKeywords(linkCache);
+                _logger.Information("[PERF] LoadKeywords: {ElapsedMs}ms ({Count} keywords)", sw.ElapsedMilliseconds, result.Count);
+                return result;
+            });
+            var outfitsTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadOutfits(linkCache);
+                _logger.Information("[PERF] LoadOutfits: {ElapsedMs}ms ({Count} outfits)", sw.ElapsedMilliseconds, result.Count);
+                return result;
+            });
 
             await Task.WhenAll(npcsTask, factionsTask, racesTask, keywordsTask, outfitsTask);
 
@@ -251,8 +281,10 @@ public class GameDataCacheService
         try
         {
             // Discover distribution files
+            var discoverSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Discovering distribution files in {DataPath}...", dataPath);
             var discoveredFiles = await _discoveryService.DiscoverAsync(dataPath);
+            _logger.Information("[PERF] DiscoverAsync: {ElapsedMs}ms ({Count} files)", discoverSw.ElapsedMilliseconds, discoveredFiles.Count);
 
             var outfitFiles = discoveredFiles
                 .Where(f => f.OutfitDistributionCount > 0)
@@ -266,10 +298,12 @@ public class GameDataCacheService
                 .ToList();
 
             // Resolve NPC outfit assignments
+            var resolveSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Resolving NPC outfit assignments...");
             var assignments = await _outfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(
                 outfitFiles,
                 npcFilterDataList);
+            _logger.Information("[PERF] ResolveNpcOutfitsWithFiltersAsync: {ElapsedMs}ms ({Count} assignments)", resolveSw.ElapsedMilliseconds, assignments.Count);
 
             _logger.Debug("Resolved {Count} NPC outfit assignments.", assignments.Count);
 
@@ -297,25 +331,33 @@ public class GameDataCacheService
 
     private (List<NpcFilterData>, List<NpcRecordViewModel>) LoadNpcs(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var filterDataList = new List<NpcFilterData>();
-        var recordsList = new List<NpcRecordViewModel>();
+        var enumSw = System.Diagnostics.Stopwatch.StartNew();
+        var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
+        _logger.Information("[PERF] LoadNpcs enumeration: {ElapsedMs}ms ({Count} total NPCs)", enumSw.ElapsedMilliseconds, allNpcs.Count);
 
-        foreach (var npc in linkCache.WinningOverrides<INpcGetter>())
+        var processSw = System.Diagnostics.Stopwatch.StartNew();
+
+        // Filter to valid NPCs first
+        var validNpcs = allNpcs
+            .Where(npc => npc.FormKey != FormKey.Null && !string.IsNullOrWhiteSpace(npc.EditorID))
+            .ToList();
+
+        // Use parallel processing for building filter data (LinkCache is thread-safe for reads)
+        var filterDataBag = new System.Collections.Concurrent.ConcurrentBag<NpcFilterData>();
+        var recordsBag = new System.Collections.Concurrent.ConcurrentBag<NpcRecordViewModel>();
+
+        System.Threading.Tasks.Parallel.ForEach(validNpcs, npc =>
         {
-            // Skip NPCs without EditorIDs - these are typically internal/generated NPCs
-            // that aren't useful for filtering or distribution purposes
-            if (npc.FormKey == FormKey.Null || string.IsNullOrWhiteSpace(npc.EditorID))
-                continue;
-
             try
             {
-                var originalModKey = FindOriginalMaster(linkCache, npc.FormKey);
+                // Use FormKey.ModKey directly (no expensive FindOriginalMaster)
+                var originalModKey = npc.FormKey.ModKey;
 
                 // Build NpcFilterData
                 var filterData = BuildNpcFilterData(npc, linkCache, originalModKey);
                 if (filterData != null)
                 {
-                    filterDataList.Add(filterData);
+                    filterDataBag.Add(filterData);
                 }
 
                 // Build simple NpcRecordViewModel
@@ -324,15 +366,18 @@ public class GameDataCacheService
                     npc.EditorID,
                     Utilities.NpcDataExtractor.GetName(npc),
                     originalModKey);
-                recordsList.Add(new NpcRecordViewModel(record));
+                recordsBag.Add(new NpcRecordViewModel(record));
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.Debug(ex, "Failed to process NPC {FormKey}", npc.FormKey);
+                // Silently skip failed NPCs
             }
-        }
+        });
 
-        return (filterDataList, recordsList);
+        _logger.Information("[PERF] LoadNpcs processing: {ElapsedMs}ms ({ValidCount} valid NPCs)",
+            processSw.ElapsedMilliseconds, validNpcs.Count);
+
+        return (filterDataBag.ToList(), recordsBag.ToList());
     }
 
     private NpcFilterData? BuildNpcFilterData(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, ModKey originalModKey)

@@ -28,13 +28,6 @@ public class DistributionDiscoveryService(ILogger logger)
     {
         var files = new ConcurrentBag<DistributionFile>();
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var enumerationOptions = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            ReturnSpecialDirectories = false,
-            IgnoreInaccessible = true,
-            MatchCasing = MatchCasing.CaseInsensitive
-        };
 
         var spidFileCount = 0;
         var skyPatcherFileCount = 0;
@@ -45,12 +38,27 @@ public class DistributionDiscoveryService(ILogger logger)
         {
             _logger.Debug("Starting distribution file discovery in {DataPath}", dataFolderPath);
 
-            foreach (var spidFile in Directory.EnumerateFiles(dataFolderPath, "*_DISTR.ini", enumerationOptions))
+            // SPID files are almost always in the root Data folder (not nested)
+            // Do a fast non-recursive search first - this covers 99% of cases
+            var spidEnumSw = System.Diagnostics.Stopwatch.StartNew();
+            var nonRecursiveOptions = new EnumerationOptions
+            {
+                RecurseSubdirectories = false,
+                ReturnSpecialDirectories = false,
+                IgnoreInaccessible = true,
+                MatchCasing = MatchCasing.CaseInsensitive
+            };
+            var spidFiles = Directory.EnumerateFiles(dataFolderPath, "*_DISTR.ini", nonRecursiveOptions).ToList();
+            _logger.Information("[PERF] SPID file enumeration: {ElapsedMs}ms ({Count} files)", spidEnumSw.ElapsedMilliseconds, spidFiles.Count);
+
+            var spidParseSw = System.Diagnostics.Stopwatch.StartNew();
+            foreach (var spidFile in spidFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 spidFileCount++;
                 TryParse(spidFile, DistributionFileType.Spid);
             }
+            _logger.Information("[PERF] SPID file parsing: {ElapsedMs}ms ({Count} files)", spidParseSw.ElapsedMilliseconds, spidFileCount);
 
             _logger.Debug("Found {Count} SPID distribution files (*_DISTR.ini)", spidFileCount);
 
@@ -58,7 +66,20 @@ public class DistributionDiscoveryService(ILogger logger)
             if (Directory.Exists(skyPatcherRoot))
             {
                 _logger.Debug("SkyPatcher directory exists: {Path}", skyPatcherRoot);
-                foreach (var iniFile in Directory.EnumerateFiles(skyPatcherRoot, "*.ini*", enumerationOptions))
+
+                var skyEnumSw = System.Diagnostics.Stopwatch.StartNew();
+                var skyPatcherOptions = new EnumerationOptions
+                {
+                    RecurseSubdirectories = false,  // Non-recursive: SPID files are always in Data root
+                    ReturnSpecialDirectories = false,
+                    IgnoreInaccessible = true,
+                    MatchCasing = MatchCasing.CaseInsensitive
+                };
+                var skyFiles = Directory.EnumerateFiles(skyPatcherRoot, "*.ini*", skyPatcherOptions).ToList();
+                _logger.Information("[PERF] SkyPatcher file enumeration: {ElapsedMs}ms ({Count} files)", skyEnumSw.ElapsedMilliseconds, skyFiles.Count);
+
+                var skyParseSw = System.Diagnostics.Stopwatch.StartNew();
+                foreach (var iniFile in skyFiles)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (seenPaths.Contains(iniFile))
@@ -70,6 +91,7 @@ public class DistributionDiscoveryService(ILogger logger)
                         TryParse(iniFile, DistributionFileType.SkyPatcher);
                     }
                 }
+                _logger.Information("[PERF] SkyPatcher file parsing: {ElapsedMs}ms ({Count} valid files)", skyParseSw.ElapsedMilliseconds, skyPatcherFileCount);
                 _logger.Debug("Found {Count} SkyPatcher distribution files", skyPatcherFileCount);
             }
             else
