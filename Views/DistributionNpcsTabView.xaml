@@ -253,6 +253,8 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="10" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <!-- Distribution Details -->
@@ -411,6 +413,179 @@
                                    FontSize="10"
                                    Margin="0,6,0,0" />
                     </Grid>
+                </GroupBox>
+
+                <!-- NPC Details -->
+                <GroupBox Grid.Column="6" Header="NPC Details" Padding="6">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- FormKey -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="FormKey:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.FormKeyString}"
+                                           FontFamily="Consolas" FontSize="10" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Source Mod -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Mod:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.ModDisplayName}"
+                                           FontSize="10" Foreground="Gray" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Gender -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Gender:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock FontSize="11" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Male" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedNpcFilterData.IsFemale}" Value="True">
+                                                    <Setter Property="Text" Value="Female" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Traits -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Traits:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Unique" FontSize="10" Foreground="#0066CC" Margin="0,0,6,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedNpcFilterData.IsUnique}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="Summonable" FontSize="10" Foreground="#0066CC" Margin="0,0,6,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedNpcFilterData.IsSummonable}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="Child" FontSize="10" Foreground="#0066CC" Margin="0,0,6,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedNpcFilterData.IsChild}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="Leveled" FontSize="10" Foreground="#0066CC" Margin="0,0,6,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedNpcFilterData.IsLeveled}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Level -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Level:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.Level}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Race -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Race:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.RaceEditorId}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Class -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Class:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.ClassEditorId}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Voice Type -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Voice:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.VoiceTypeEditorId}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Combat Style -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Combat:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedNpcFilterData.CombatStyleEditorId}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Template -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Template:" FontWeight="SemiBold" Width="70" FontSize="11" />
+                                <TextBlock FontSize="11" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding SelectedNpcFilterData.TemplateEditorId}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedNpcFilterData.TemplateEditorId}" Value="{x:Null}">
+                                                    <Setter Property="Text" Value="(None)" />
+                                                    <Setter Property="Foreground" Value="Gray" />
+                                                    <Setter Property="FontStyle" Value="Italic" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Factions -->
+                            <TextBlock Text="Factions:" FontWeight="SemiBold" Margin="0,6,0,2" FontSize="11" />
+                            <ItemsControl ItemsSource="{Binding SelectedNpcFilterData.Factions}" Margin="8,0,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding FactionEditorId}" FontSize="10" />
+                                            <TextBlock Text="{Binding Rank, StringFormat=' (Rank {0})'}"
+                                                       FontSize="10" Foreground="Gray" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Keywords -->
+                            <TextBlock Text="Keywords:" FontWeight="SemiBold" Margin="0,6,0,2" FontSize="11" />
+                            <ItemsControl ItemsSource="{Binding SelectedNpcFilterData.Keywords}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#E8E8E8" CornerRadius="3" Padding="4,1" Margin="0,0,4,4">
+                                            <TextBlock Text="{Binding}" FontSize="9" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
                 </GroupBox>
             </Grid>
         </Grid>

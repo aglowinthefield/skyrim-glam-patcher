@@ -117,6 +117,11 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
     [Reactive] public string SelectedNpcOutfitContents { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// The NpcFilterData for the currently selected NPC, used to display detailed stats.
+    /// </summary>
+    [Reactive] public NpcFilterData? SelectedNpcFilterData { get; private set; }
+
     #region SPID Filter Properties
 
     /// <summary>
@@ -408,6 +413,17 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
     private void UpdateSelectedNpcOutfitContents()
     {
+        // Update NpcFilterData for the selected NPC
+        if (SelectedNpcAssignment != null &&
+            _cache.NpcsByFormKey.TryGetValue(SelectedNpcAssignment.NpcFormKey, out var npcData))
+        {
+            SelectedNpcFilterData = npcData;
+        }
+        else
+        {
+            SelectedNpcFilterData = null;
+        }
+
         if (SelectedNpcAssignment == null || !SelectedNpcAssignment.FinalOutfitFormKey.HasValue)
         {
             SelectedNpcOutfitContents = string.Empty;

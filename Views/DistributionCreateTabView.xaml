@@ -123,11 +123,11 @@
                                             <TextBlock Text="NPCs:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" Foreground="Gray" />
                                             <ItemsControl ItemsSource="{Binding SelectedNpcs}" VerticalAlignment="Center">
                                                 <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                    <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,3,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
                                                                 <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
@@ -154,11 +154,11 @@
                                             <TextBlock Text="Factions:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" Foreground="Gray" />
                                             <ItemsControl ItemsSource="{Binding SelectedFactions}" VerticalAlignment="Center">
                                                 <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                    <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,3,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
                                                                 <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
@@ -185,11 +185,11 @@
                                             <TextBlock Text="Keywords:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" Foreground="Gray" />
                                             <ItemsControl ItemsSource="{Binding SelectedKeywords}" VerticalAlignment="Center">
                                                 <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                    <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,3,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
                                                                 <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
@@ -216,11 +216,11 @@
                                             <TextBlock Text="Races:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" Foreground="Gray" />
                                             <ItemsControl ItemsSource="{Binding SelectedRaces}" VerticalAlignment="Center">
                                                 <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                    <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,3,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
                                                                 <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />

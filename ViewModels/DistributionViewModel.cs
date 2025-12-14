@@ -167,6 +167,8 @@ public class DistributionViewModel : ReactiveObject
             .Subscribe(_ => this.RaisePropertyChanged(nameof(FilteredNpcOutfitAssignments)));
         NpcsTab.WhenAnyValue(vm => vm.SelectedNpcOutfitContents)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(SelectedNpcOutfitContents)));
+        NpcsTab.WhenAnyValue(vm => vm.SelectedNpcFilterData)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(SelectedNpcFilterData)));
 
         // Forward SPID filter property changes from NpcsTab
         NpcsTab.WhenAnyValue(vm => vm.SelectedGenderFilter)
@@ -588,6 +590,9 @@ public class DistributionViewModel : ReactiveObject
 
     /// <summary>UI: TextBox in NPCs tab detail panel showing formatted outfit contents (armor pieces).</summary>
     public string SelectedNpcOutfitContents => NpcsTab.SelectedNpcOutfitContents;
+
+    /// <summary>UI: NPC Details panel showing detailed NPC stats for the selected NPC.</summary>
+    public NpcFilterData? SelectedNpcFilterData => NpcsTab.SelectedNpcFilterData;
 
     /// <summary>UI: "↻ Refresh" button in NPCs tab to rescan distribution files for NPC assignments.</summary>
     public ReactiveCommand<Unit, Unit> ScanNpcOutfitsCommand => NpcsTab.ScanNpcOutfitsCommand;
