@@ -214,7 +214,7 @@ public class DistributionDiscoveryService(ILogger logger)
                 }
 
                 var isOutfitDistribution = IsOutfitDistributionLine(type, kind, trimmed);
-                IReadOnlyList<string> outfitFormKeys = Array.Empty<string>();
+                IReadOnlyList<string> outfitFormKeys = [];
 
                 if (isOutfitDistribution)
                 {
@@ -287,7 +287,7 @@ public class DistributionDiscoveryService(ILogger logger)
         {
             DistributionFileType.Spid => ExtractSpidOutfitKeys(trimmed),
             DistributionFileType.SkyPatcher => ExtractSkyPatcherOutfitKeys(trimmed),
-            _ => Array.Empty<string>()
+            _ => []
         };
     }
 
@@ -295,11 +295,11 @@ public class DistributionDiscoveryService(ILogger logger)
     {
         var equalsIndex = trimmed.IndexOf('=');
         if (equalsIndex < 0)
-            return Array.Empty<string>();
+            return [];
 
         var valuePortion = trimmed[(equalsIndex + 1)..].Trim();
         if (string.IsNullOrWhiteSpace(valuePortion))
-            return Array.Empty<string>();
+            return [];
 
         // SPID format: OutfitIdentifier|StringFilters|FormFilters|LevelFilters|Traits|IdxOrCount|Chance
         // The identifier can be:

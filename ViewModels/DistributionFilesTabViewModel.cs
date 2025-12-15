@@ -119,7 +119,7 @@ public class DistributionFilesTabViewModel : ReactiveObject
     {
         get
         {
-            var lines = SelectedFile?.Lines ?? Array.Empty<DistributionLine>();
+            var lines = SelectedFile?.Lines ?? [];
 
             if (string.IsNullOrWhiteSpace(LineFilter))
                 return lines;

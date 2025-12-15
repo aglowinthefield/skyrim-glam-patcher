@@ -78,7 +78,7 @@ public static class OutfitResolver
     {
         var pieces = new List<ArmorRecordViewModel>();
 
-        var items = outfit.Items ?? Array.Empty<IFormLinkGetter<IOutfitTargetGetter>>();
+        var items = outfit.Items ?? [];
 
         foreach (var itemLink in items)
         {

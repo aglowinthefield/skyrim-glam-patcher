@@ -62,7 +62,7 @@ public static class SpidLineParser
         // Now split the remainder by | to get filter sections
         // Sections: StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
         var sections = string.IsNullOrWhiteSpace(remainder)
-            ? Array.Empty<string>()
+            ? []
             : remainder.Split('|');
 
         var stringFilters = ParseFilterSection(GetSection(sections, 0));

@@ -11,8 +11,8 @@ namespace Boutique.Views;
 public partial class OutfitCreatorView
 {
     private const string ArmorDragDataFormat = "Boutique.ArmorRecords";
-    private static readonly Regex AlphaInputRegex = new("^[A-Za-z]+$", RegexOptions.Compiled);
-    private static readonly Regex AlphaSanitizerRegex = new("[^A-Za-z]", RegexOptions.Compiled);
+    private static readonly Regex _alphanumericInputRegex = new("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
+    private static readonly Regex _alphanumericSanitizerRegex = new("[^A-Za-z0-9_]", RegexOptions.Compiled);
     private MainViewModel? _currentViewModel;
 
     private Point? _outfitDragStartPoint;
@@ -164,7 +164,7 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !AlphaInputRegex.IsMatch(e.Text);
+    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !_alphanumericInputRegex.IsMatch(e.Text);
 
     private void OutfitNameTextBox_OnPasting(object sender, DataObjectPastingEventArgs e)
     {
@@ -177,7 +177,7 @@ public partial class OutfitCreatorView
             return;
         }
 
-        var sanitized = AlphaSanitizerRegex.Replace(rawText, string.Empty);
+        var sanitized = _alphanumericSanitizerRegex.Replace(rawText, string.Empty);
         if (string.IsNullOrEmpty(sanitized))
         {
             e.CancelCommand();

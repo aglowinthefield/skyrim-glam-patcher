@@ -30,7 +30,7 @@ public class DistributionConflictDetectionService
                 ConflictsResolvedByFilename: false,
                 ConflictSummary: string.Empty,
                 SuggestedFileName: newFileName,
-                Conflicts: Array.Empty<NpcConflictInfo>());
+                Conflicts: []);
         }
 
         // Build a map of NPC FormKey -> (FileName, OutfitEditorId) from existing distribution files

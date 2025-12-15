@@ -25,7 +25,7 @@ public class NpcScanningService
             if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
             {
                 _logger.Warning("LinkCache not available for NPC scanning.");
-                return Array.Empty<NpcRecord>();
+                return [];
             }
 
             var npcs = new List<NpcRecord>();
@@ -82,7 +82,7 @@ public class NpcScanningService
             if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
             {
                 _logger.Warning("LinkCache not available for NPC scanning.");
-                return Array.Empty<NpcFilterData>();
+                return [];
             }
 
             var npcs = new List<NpcFilterData>();

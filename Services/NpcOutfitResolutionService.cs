@@ -31,7 +31,7 @@ public class NpcOutfitResolutionService
             if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
             {
                 _logger.Warning("LinkCache not available for NPC outfit resolution.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
 
             _logger.Debug("LinkCache is available");
@@ -103,12 +103,12 @@ public class NpcOutfitResolutionService
             catch (OperationCanceledException)
             {
                 _logger.Information("NPC outfit resolution cancelled.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to resolve NPC outfit assignments.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
         }, cancellationToken);
     }
@@ -126,7 +126,7 @@ public class NpcOutfitResolutionService
             if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
             {
                 _logger.Warning("LinkCache not available for NPC outfit resolution.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
 
             try
@@ -170,12 +170,12 @@ public class NpcOutfitResolutionService
             catch (OperationCanceledException)
             {
                 _logger.Information("NPC outfit resolution cancelled.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to resolve NPC outfit assignments.");
-                return Array.Empty<NpcOutfitAssignment>();
+                return [];
             }
         }, cancellationToken);
     }

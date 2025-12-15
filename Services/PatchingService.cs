@@ -83,7 +83,7 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
                     patchMod = new SkyrimMod(modKey, SkyrimRelease.SkyrimSE);
 
                 var existingMasters = patchMod.ModHeader.MasterReferences?
-                    .Select(m => m.Master) ?? Enumerable.Empty<ModKey>();
+                    .Select(m => m.Master) ?? [];
                 requiredMasters.UnionWith(existingMasters);
 
                 var current = 0;

@@ -21,7 +21,7 @@ namespace Boutique.ViewModels;
 
 public class MainViewModel : ReactiveObject
 {
-    private static readonly Regex OutfitNameSanitizer = new("[^A-Za-z]", RegexOptions.Compiled);
+    private static readonly Regex OutfitNameSanitizer = new("[^A-Za-z0-9_]", RegexOptions.Compiled);
     private static readonly BipedObjectFlag[] BipedObjectFlags = Enum.GetValues<BipedObjectFlag>()
         .Where(f => f != 0 && ((uint)f & ((uint)f - 1)) == 0) // Only single-bit flags (powers of 2)
         .ToArray();
@@ -380,7 +380,7 @@ public class MainViewModel : ReactiveObject
             if (outfit.FormKey.ModKey != pluginModKey)
                 continue;
 
-            var itemLinks = outfit.Items ?? Array.Empty<IFormLinkGetter<IOutfitTargetGetter>>();
+            var itemLinks = outfit.Items ?? [];
             var armorPieces = new List<IArmorGetter>();
 
             foreach (var entry in itemLinks)
