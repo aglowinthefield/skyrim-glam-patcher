@@ -121,6 +121,15 @@ public class MainViewModel : ReactiveObject
 
         var canCopyExistingOutfits = this.WhenAnyValue(x => x.HasExistingPluginOutfits);
         CopyExistingOutfitsCommand = ReactiveCommand.Create(CopyExistingOutfits, canCopyExistingOutfits);
+
+        // Auto-load outfits from output plugin when PatchFileName changes (after initialization)
+        Settings.WhenAnyValue(x => x.PatchFileName)
+            .Skip(1) // Skip initial value
+            .Where(_ => AvailablePlugins.Count > 0) // Only after plugins are loaded
+            .Throttle(TimeSpan.FromMilliseconds(500)) // Debounce rapid changes
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .SelectMany(_ => LoadOutfitsFromOutputPluginAsync().ToObservable())
+            .Subscribe();
     }
 
     public Interaction<string, Unit> PatchCreatedNotification { get; } = new();
@@ -531,6 +540,112 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    /// <summary>
+    /// Loads existing outfits from the output plugin (if it exists in the load order) into the drafts pane.
+    /// This allows users to continue editing outfits from previous sessions.
+    /// </summary>
+    private async Task LoadOutfitsFromOutputPluginAsync()
+    {
+        var outputPlugin = Settings.PatchFileName;
+        if (string.IsNullOrWhiteSpace(outputPlugin))
+        {
+            _logger.Debug("No output plugin configured, skipping auto-load of existing outfits.");
+            return;
+        }
+
+        // Check if the output plugin exists in the load order
+        if (!AvailablePlugins.Contains(outputPlugin, StringComparer.OrdinalIgnoreCase))
+        {
+            _logger.Debug("Output plugin {Plugin} not found in load order, skipping auto-load.", outputPlugin);
+            return;
+        }
+
+        if (_mutagenService.LinkCache == null)
+        {
+            _logger.Warning("Link cache unavailable; skipping auto-load of outfits from {Plugin}.", outputPlugin);
+            return;
+        }
+
+        _logger.Information("Output plugin {Plugin} exists in load order, loading existing outfits for editing...", outputPlugin);
+
+        var outfits = (await _mutagenService.LoadOutfitsFromPluginAsync(outputPlugin)).ToList();
+        var pluginModKey = ModKey.FromFileName(outputPlugin);
+        var linkCache = _mutagenService.LinkCache;
+        var loadedCount = 0;
+
+        foreach (var outfit in outfits)
+        {
+            // Only load outfits that originate from this plugin (not overrides)
+            if (outfit.FormKey.ModKey != pluginModKey)
+                continue;
+
+            // Skip if already in drafts
+            if (_outfitDrafts.Any(d => d.FormKey.HasValue && d.FormKey.Value == outfit.FormKey))
+            {
+                _logger.Debug("Skipping outfit {EditorId} - already in drafts.", outfit.EditorID);
+                continue;
+            }
+
+            var itemLinks = outfit.Items ?? [];
+            var armorPieces = new List<IArmorGetter>();
+
+            foreach (var entry in itemLinks)
+            {
+                if (entry == null)
+                    continue;
+
+                var formKeyNullable = entry.FormKeyNullable;
+                if (!formKeyNullable.HasValue || formKeyNullable.Value == FormKey.Null)
+                    continue;
+
+                if (!linkCache.TryResolve<IItemGetter>(formKeyNullable.Value, out var item))
+                    continue;
+
+                if (item is IArmorGetter armor)
+                    armorPieces.Add(armor);
+            }
+
+            var distinctPieces = armorPieces
+                .GroupBy(p => p.FormKey)
+                .Select(g => g.First())
+                .ToList();
+
+            if (distinctPieces.Count == 0)
+                continue;
+
+            var editorId = outfit.EditorID ?? SanitizeOutfitName(outfit.FormKey.ToString());
+            var pieces = distinctPieces.Select(a => new ArmorRecordViewModel(a, linkCache)).ToList();
+
+            if (!ValidateOutfitPieces(pieces, out var validationMessage))
+            {
+                _logger.Warning("Skipping outfit {EditorId} due to slot conflict: {Message}", editorId, validationMessage);
+                continue;
+            }
+
+            var draft = new OutfitDraftViewModel(
+                editorId,
+                editorId,
+                pieces,
+                RemoveOutfitDraft,
+                RemoveOutfitPiece,
+                PreviewDraftAsync);
+
+            draft.FormKey = outfit.FormKey;
+            draft.PropertyChanged += OutfitDraftOnPropertyChanged;
+            _outfitDrafts.Add(draft);
+            loadedCount++;
+
+            _logger.Debug("Loaded existing outfit {EditorId} from output plugin {Plugin}.", editorId, outputPlugin);
+        }
+
+        if (loadedCount > 0)
+        {
+            StatusMessage = $"Loaded {loadedCount} existing outfit(s) from {outputPlugin} for editing.";
+            _logger.Information("Loaded {Count} existing outfit(s) from output plugin {Plugin} for editing.",
+                loadedCount, outputPlugin);
+        }
+    }
+
     private void ConfigureSourceArmorsView()
     {
         SourceArmorsView = CollectionViewSource.GetDefaultView(_sourceArmors);
@@ -806,6 +921,9 @@ public class MainViewModel : ReactiveObject
 
             // GameDataCacheService automatically loads when MutagenService.Initialized fires
             // No need to manually trigger refresh here - it would invalidate the cross-session cache
+
+            // Auto-load existing outfits from output plugin if it exists in the load order
+            await LoadOutfitsFromOutputPluginAsync();
         }
         catch (Exception ex)
         {
