@@ -207,6 +207,19 @@ public class DistributionViewModel : ReactiveObject
             EditTab.SetDistributionFilesInternal(FilesTab.Files.ToList());
         };
 
+        // Wire up filter copying from NPCs tab to Edit tab
+        NpcsTab.FilterCopied += (_, copiedFilter) =>
+        {
+            EditTab.CopiedFilter = copiedFilter;
+            _logger.Debug("Filter copied from NPCs tab: {Description}", copiedFilter.Description);
+        };
+
+        // Forward CopiedFilter property changes
+        EditTab.WhenAnyValue(vm => vm.CopiedFilter)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(CopiedFilter)));
+        EditTab.WhenAnyValue(vm => vm.HasCopiedFilter)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(HasCopiedFilter)));
+
         // Subscribe to collection changes for collections that need forwarding
         EditTab.AvailableDistributionFiles.CollectionChanged += (sender, e) =>
             this.RaisePropertyChanged(nameof(AvailableDistributionFiles));
@@ -562,6 +575,15 @@ public class DistributionViewModel : ReactiveObject
     /// <summary>UI: Eye icon button on each entry to preview the selected outfit.</summary>
     public ReactiveCommand<DistributionEntryViewModel, Unit> PreviewEntryCommand => EditTab.PreviewEntryCommand;
 
+    /// <summary>UI: "Paste Filter" button in Create tab to paste copied filter to selected entry.</summary>
+    public ReactiveCommand<Unit, Unit> PasteFilterToEntryCommand => EditTab.PasteFilterToEntryCommand;
+
+    /// <summary>The copied filter from NPCs tab, available for pasting.</summary>
+    public CopiedNpcFilter? CopiedFilter => EditTab.CopiedFilter;
+
+    /// <summary>Whether a copied filter is available for pasting.</summary>
+    public bool HasCopiedFilter => EditTab.HasCopiedFilter;
+
     /// <summary>Called when outfit ComboBox opens to ensure outfits are loaded.</summary>
     public void EnsureOutfitsLoaded() => EditTab.EnsureOutfitsLoaded();
 
@@ -675,6 +697,9 @@ public class DistributionViewModel : ReactiveObject
 
     /// <summary>UI: Clear filters button command.</summary>
     public ReactiveCommand<Unit, Unit> ClearFiltersCommand => NpcsTab.ClearFiltersCommand;
+
+    /// <summary>UI: Copy filter button command - copies current filter for pasting in Create tab.</summary>
+    public ReactiveCommand<Unit, Unit> CopyFilterCommand => NpcsTab.CopyFilterCommand;
 
     /// <summary>UI: Generated SPID syntax preview.</summary>
     public string GeneratedSpidSyntax => NpcsTab.GeneratedSpidSyntax;

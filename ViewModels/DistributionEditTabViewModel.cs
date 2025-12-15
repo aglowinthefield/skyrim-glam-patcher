@@ -89,6 +89,16 @@ public class DistributionEditTabViewModel : ReactiveObject
         SelectDistributionFilePathCommand = ReactiveCommand.Create(SelectDistributionFilePath);
         PreviewEntryCommand = ReactiveCommand.CreateFromTask<DistributionEntryViewModel>(PreviewEntryAsync, notLoading);
 
+        var canPaste = this.WhenAnyValue(
+            vm => vm.HasCopiedFilter,
+            vm => vm.SelectedEntry,
+            (hasCopied, entry) => hasCopied && entry != null);
+        PasteFilterToEntryCommand = ReactiveCommand.Create(PasteFilterToEntry, canPaste);
+
+        // Notify HasCopiedFilter when CopiedFilter changes
+        this.WhenAnyValue(vm => vm.CopiedFilter)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(HasCopiedFilter)));
+
         this.WhenAnyValue(vm => vm.NpcSearchText)
             .Subscribe(_ => UpdateFilteredNpcs());
         this.WhenAnyValue(vm => vm.FactionSearchText)
@@ -320,6 +330,16 @@ public class DistributionEditTabViewModel : ReactiveObject
     /// </summary>
     [Reactive] public string SuggestedFileName { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// The copied filter from the NPCs tab, available for pasting into entries.
+    /// </summary>
+    [Reactive] public CopiedNpcFilter? CopiedFilter { get; set; }
+
+    /// <summary>
+    /// Whether a copied filter is available for pasting.
+    /// </summary>
+    public bool HasCopiedFilter => CopiedFilter != null;
+
     public ReactiveCommand<Unit, Unit> AddDistributionEntryCommand { get; }
     public ReactiveCommand<DistributionEntryViewModel, Unit> RemoveDistributionEntryCommand { get; }
     public ReactiveCommand<DistributionEntryViewModel, Unit> SelectEntryCommand { get; }
@@ -332,6 +352,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ScanNpcsCommand { get; }
     public ReactiveCommand<Unit, Unit> SelectDistributionFilePathCommand { get; }
     public ReactiveCommand<DistributionEntryViewModel, Unit> PreviewEntryCommand { get; }
+    public ReactiveCommand<Unit, Unit> PasteFilterToEntryCommand { get; }
 
     public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
 
@@ -639,6 +660,105 @@ public class DistributionEditTabViewModel : ReactiveObject
         else
         {
             StatusMessage = "All selected races are already in this entry.";
+        }
+    }
+
+    private void PasteFilterToEntry()
+    {
+        if (CopiedFilter == null)
+        {
+            StatusMessage = "No filter to paste. Copy a filter from the NPCs tab first.";
+            return;
+        }
+
+        if (SelectedEntry == null)
+        {
+            SelectedEntry = DistributionEntries.FirstOrDefault();
+            if (SelectedEntry == null)
+            {
+                AddDistributionEntry();
+                // Wait for entry to be created, then try again
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (SelectedEntry != null)
+                    {
+                        ApplyFilterToEntry(SelectedEntry, CopiedFilter);
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
+        }
+
+        ApplyFilterToEntry(SelectedEntry, CopiedFilter);
+    }
+
+    private void ApplyFilterToEntry(DistributionEntryViewModel entry, CopiedNpcFilter filter)
+    {
+        var addedItems = new List<string>();
+
+        // Add factions from the filter
+        foreach (var factionFormKey in filter.Factions)
+        {
+            var factionVm = ResolveFactionFormKey(factionFormKey);
+            if (factionVm != null && !entry.SelectedFactions.Any(f => f.FormKey == factionFormKey))
+            {
+                entry.AddFaction(factionVm);
+                addedItems.Add($"faction:{factionVm.DisplayName}");
+            }
+        }
+
+        // Add races from the filter
+        foreach (var raceFormKey in filter.Races)
+        {
+            var raceVm = ResolveRaceFormKey(raceFormKey);
+            if (raceVm != null && !entry.SelectedRaces.Any(r => r.FormKey == raceFormKey))
+            {
+                entry.AddRace(raceVm);
+                addedItems.Add($"race:{raceVm.DisplayName}");
+            }
+        }
+
+        // Add keywords from the filter
+        foreach (var keywordFormKey in filter.Keywords)
+        {
+            var keywordVm = ResolveKeywordFormKey(keywordFormKey);
+            if (keywordVm != null && !entry.SelectedKeywords.Any(k => k.FormKey == keywordFormKey))
+            {
+                entry.AddKeyword(keywordVm);
+                addedItems.Add($"keyword:{keywordVm.DisplayName}");
+            }
+        }
+
+        // Apply trait filters if using SPID format
+        if (filter.HasTraitFilters && DistributionFormat == DistributionFileType.Spid)
+        {
+            // Create new TraitFilters instance with the copied values
+            entry.Entry.TraitFilters = new SpidTraitFilters
+            {
+                IsFemale = filter.IsFemale,
+                IsUnique = filter.IsUnique,
+                IsChild = filter.IsChild
+            };
+
+            if (filter.IsFemale.HasValue)
+                addedItems.Add(filter.IsFemale.Value ? "trait:Female" : "trait:Male");
+            if (filter.IsUnique.HasValue)
+                addedItems.Add(filter.IsUnique.Value ? "trait:Unique" : "trait:Non-Unique");
+            if (filter.IsChild.HasValue)
+                addedItems.Add(filter.IsChild.Value ? "trait:Child" : "trait:Adult");
+        }
+
+        if (addedItems.Count > 0)
+        {
+            StatusMessage = $"Pasted filter to entry: added {addedItems.Count} filter(s)";
+            _logger.Debug("Pasted filter to entry: {Items}", string.Join(", ", addedItems));
+
+            // Trigger preview update
+            UpdateDistributionPreview();
+        }
+        else
+        {
+            StatusMessage = "Filter already applied or no applicable filters to paste.";
         }
     }
 

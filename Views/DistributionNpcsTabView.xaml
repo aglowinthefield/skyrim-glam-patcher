@@ -113,7 +113,15 @@
                             Command="{Binding ClearFiltersCommand}"
                             Padding="8,2"
                             VerticalAlignment="Center"
+                            Margin="0,0,6,0"
                             ToolTip="Reset all filters to default" />
+
+                    <!-- Copy Filter Button -->
+                    <Button Content="📋 Copy Filter"
+                            Command="{Binding CopyFilterCommand}"
+                            Padding="8,2"
+                            VerticalAlignment="Center"
+                            ToolTip="Copy current filter to paste in Create tab" />
                 </StackPanel>
 
                 <!-- Filter Status Row -->

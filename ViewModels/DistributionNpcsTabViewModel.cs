@@ -37,6 +37,9 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         PreviewNpcOutfitCommand = ReactiveCommand.CreateFromTask<NpcOutfitAssignmentViewModel>(PreviewNpcOutfitAsync, notLoading);
         ClearFiltersCommand = ReactiveCommand.Create(ClearFilters);
 
+        var hasFilters = this.WhenAnyValue(vm => vm.HasActiveFilters);
+        CopyFilterCommand = ReactiveCommand.Create(CopyFilter, hasFilters);
+
         // NPCs tab search filtering - combine text search with SPID filters
         this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
             .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
@@ -202,7 +205,14 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> ClearFiltersCommand { get; }
 
+    public ReactiveCommand<Unit, Unit> CopyFilterCommand { get; }
+
     public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+
+    /// <summary>
+    /// Event raised when a filter is copied, allowing parent to store it for pasting.
+    /// </summary>
+    public event EventHandler<CopiedNpcFilter>? FilterCopied;
 
     public bool IsInitialized => _mutagenService.IsInitialized;
 
@@ -393,7 +403,12 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         // Apply SPID-style filters
         if (!Filter.IsEmpty)
         {
-            filtered = filtered.Where(a => MatchesSpidFilter(a.NpcFormKey));
+            // When filters are active, also exclude NPCs without EditorIDs
+            // These are typically template-generated NPCs that can't be targeted in distribution files
+            filtered = filtered.Where(a =>
+                !string.IsNullOrEmpty(a.EditorId) &&
+                a.EditorId != "(No EditorID)" &&
+                MatchesSpidFilter(a.NpcFormKey));
         }
 
         FilteredNpcOutfitAssignments.Clear();
@@ -408,7 +423,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     private bool MatchesSpidFilter(FormKey npcFormKey)
     {
         if (!_cache.NpcsByFormKey.TryGetValue(npcFormKey, out var npcData))
-            return true; // If we don't have filter data, don't filter out
+            return false; // If we don't have filter data, filter out (can't evaluate filters)
 
         return Filter.Matches(npcData);
     }
@@ -438,6 +453,20 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
         UpdateFilteredNpcOutfitAssignments();
         UpdateSyntaxPreview();
+    }
+
+    private void CopyFilter()
+    {
+        if (!HasActiveFilters)
+        {
+            StatusMessage = "No filters to copy. Apply filters first.";
+            return;
+        }
+
+        var copiedFilter = CopiedNpcFilter.FromSpidFilter(Filter, FilterDescription);
+        FilterCopied?.Invoke(this, copiedFilter);
+        StatusMessage = $"Filter copied: {FilterDescription}";
+        _logger.Debug("Copied filter: {Description}", FilterDescription);
     }
 
     private void UpdateSelectedNpcOutfitContents()
