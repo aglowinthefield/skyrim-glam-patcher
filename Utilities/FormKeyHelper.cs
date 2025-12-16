@@ -12,7 +12,10 @@ public static class FormKeyHelper
     /// <summary>
     /// Formats a FormKey as "ModKey|FormID" for SkyPatcher format.
     /// </summary>
-    public static string Format(FormKey formKey) => $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
+    public static string Format(FormKey formKey)
+    {
+        return $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
+    }
 
     /// <summary>
     /// Tries to create a FormKey from a string like "ModKey|FormID" or "FormID~ModKey".
@@ -101,11 +104,11 @@ public static class FormKeyHelper
 
         var trimmed = identifier.Trim();
         string? modCandidate = null;
+        string? editorCandidate = null;
 
         var pipeIndex = trimmed.IndexOf('|');
         var tildeIndex = trimmed.IndexOf('~');
 
-        string? editorCandidate;
         if (pipeIndex >= 0)
         {
             var firstPart = trimmed[..pipeIndex].Trim();

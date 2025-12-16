@@ -73,17 +73,38 @@
                 </StackPanel>
 
                 <!-- Distribution Entries List -->
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding DistributionEntries}">
-                        <ItemsControl.ItemTemplate>
+                <ListBox Grid.Row="2" ItemsSource="{Binding DistributionEntries}"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         Background="Transparent" BorderThickness="0"
+                         HorizontalContentAlignment="Stretch">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderThickness="1" Margin="0,0,0,6" Padding="6" Cursor="Hand" Background="{DynamicResource Brush.CardBackground}">
+                                <Border BorderThickness="1" Margin="0,0,0,6" Padding="6" Cursor="Hand" Background="{StaticResource Brush.CardBackground}">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
                                                     <Setter Property="BorderThickness" Value="2" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -129,10 +150,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{StaticResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{StaticResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveNpc_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -160,10 +181,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{StaticResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{StaticResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveFaction_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -191,10 +212,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{StaticResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{StaticResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveKeyword_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -222,10 +243,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{StaticResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{StaticResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveRace_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -237,9 +258,8 @@
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
                 <!-- Preview -->
                 <GroupBox Grid.Row="3" Header="File Preview" Margin="0,6,0,0" Padding="6">

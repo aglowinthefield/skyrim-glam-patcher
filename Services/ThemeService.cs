@@ -181,19 +181,8 @@ public class ThemeService
             app.Resources.MergedDictionaries.Add(controlsDict);
         }
 
-        // Ensure brushes palette is loaded
-        var hasBrushes = app.Resources.MergedDictionaries
-            .Any(d => d.Source?.OriginalString == "Themes/ColorPalette.xaml");
-
-        if (!hasBrushes)
-        {
-            var brushesDict = new ResourceDictionary
-            {
-                Source = new Uri("Themes/ColorPalette.xaml", UriKind.Relative)
-            };
-            // Insert brushes after the color definitions but before controls
-            app.Resources.MergedDictionaries.Insert(1, brushesDict);
-        }
+        // Note: Brushes are now included directly in the theme files (ColorPaletteDark/Light.xaml)
+        // so we no longer need to load ColorPalette.xaml separately
     }
 
     private static bool IsSystemDarkMode()

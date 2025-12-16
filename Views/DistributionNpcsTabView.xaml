@@ -409,7 +409,8 @@
                                          AcceptsReturn="True"
                                          FontFamily="Consolas"
                                          FontSize="10"
-                                         Background="#F5F5F5"
+                                         Background="{StaticResource Brush.PanelBackground}"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
                                          Padding="4"
                                          Margin="0,0,0,8" />
 
@@ -421,7 +422,8 @@
                                          AcceptsReturn="True"
                                          FontFamily="Consolas"
                                          FontSize="10"
-                                         Background="#F5F5F5"
+                                         Background="{StaticResource Brush.PanelBackground}"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
                                          Padding="4" />
                             </StackPanel>
                         </ScrollViewer>
@@ -598,8 +600,12 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#E8E8E8" CornerRadius="3" Padding="4,1" Margin="0,0,4,4">
-                                            <TextBlock Text="{Binding}" FontSize="9" />
+                                        <Border Background="{StaticResource Brush.PanelBackground}"
+                                                BorderBrush="{StaticResource Brush.Border}"
+                                                BorderThickness="1"
+                                                CornerRadius="3" Padding="4,1" Margin="0,0,4,4">
+                                            <TextBlock Text="{Binding}" FontSize="9"
+                                                       Foreground="{StaticResource Brush.TextSecondary}" />
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
