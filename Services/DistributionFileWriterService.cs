@@ -189,10 +189,9 @@ public class DistributionFileWriterService
 
                     DistributionEntry? entry = null;
 
-                    // Try SkyPatcher format first: filterByNpcs=...:filterByFactions=...:outfitDefault=...
-                    if (trimmed.Contains("outfitDefault=") &&
-                        (trimmed.Contains("filterByNpcs=") || trimmed.Contains("filterByFactions=") ||
-                         trimmed.Contains("filterByKeywords=") || trimmed.Contains("filterByRaces=")))
+                    // Try SkyPatcher format: outfitDefault=... with optional filters
+                    // Lines with just outfitDefault= (no filters) mean "distribute to everyone"
+                    if (trimmed.Contains("outfitDefault=", StringComparison.OrdinalIgnoreCase))
                     {
                         entry = ParseDistributionLine(trimmed, linkCache);
                     }
@@ -234,61 +233,23 @@ public class DistributionFileWriterService
     {
         try
         {
-            // Format: filterByNpcs=ModKey|FormID,ModKey|FormID:filterByFactions=ModKey|FormID:outfitDefault=ModKey|FormID
+            // Format: filterByNpcs=...:filterByFactions=...:filterByKeywords=...:filterByRaces=...:outfitDefault=...
+            // Lines with just outfitDefault= (no filters) are valid - they mean "distribute to everyone"
             var outfitPartIndex = line.IndexOf("outfitDefault=", StringComparison.OrdinalIgnoreCase);
             if (outfitPartIndex < 0)
                 return null;
 
-            var npcFormKeys = new List<FormKey>();
-            var factionFormKeys = new List<FormKey>();
+            var npcFormKeys = ExtractFilterFormKeys(line, "filterByNpcs=", outfitPartIndex);
+            var factionFormKeys = ExtractFilterFormKeys(line, "filterByFactions=", outfitPartIndex);
+            var keywordFormKeys = ExtractFilterFormKeys(line, "filterByKeywords=", outfitPartIndex);
+            var raceFormKeys = ExtractFilterFormKeys(line, "filterByRaces=", outfitPartIndex);
 
-            // Extract NPCs if present
-            var npcPartIndex = line.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
-            if (npcPartIndex >= 0)
-            {
-                var npcStart = npcPartIndex + "filterByNpcs=".Length;
-                var npcEnd = line.IndexOf(':', npcStart);
-                if (npcEnd < 0)
-                    npcEnd = outfitPartIndex; // Use outfit position as end if no colon found
-
-                var npcString = line.Substring(npcStart, npcEnd - npcStart);
-                npcFormKeys = npcString
-                    .Split(',')
-                    .Select(s => s.Trim())
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Select(s => TryParseFormKey(s))
-                    .Where(fk => fk.HasValue)
-                    .Select(fk => fk!.Value)
-                    .ToList();
-            }
-
-            // Extract factions if present
-            var factionPartIndex = line.IndexOf("filterByFactions=", StringComparison.OrdinalIgnoreCase);
-            if (factionPartIndex >= 0)
-            {
-                var factionStart = factionPartIndex + "filterByFactions=".Length;
-                var factionEnd = line.IndexOf(':', factionStart);
-                if (factionEnd < 0)
-                    factionEnd = outfitPartIndex; // Use outfit position as end if no colon found
-
-                var factionString = line.Substring(factionStart, factionEnd - factionStart);
-                factionFormKeys = factionString
-                    .Split(',')
-                    .Select(s => s.Trim())
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Select(s => TryParseFormKey(s))
-                    .Where(fk => fk.HasValue)
-                    .Select(fk => fk!.Value)
-                    .ToList();
-            }
-
-            // Must have at least NPCs or factions
-            if (npcFormKeys.Count == 0 && factionFormKeys.Count == 0)
-                return null;
-
-            // Extract outfit
+            // Extract outfit - handle potential trailing colon or other content
             var outfitStart = outfitPartIndex + "outfitDefault=".Length;
-            var outfitString = line.Substring(outfitStart).Trim();
+            var outfitEnd = line.IndexOf(':', outfitStart);
+            var outfitString = outfitEnd >= 0
+                ? line.Substring(outfitStart, outfitEnd - outfitStart).Trim()
+                : line.Substring(outfitStart).Trim();
             var outfitFormKey = TryParseFormKey(outfitString);
 
             if (!outfitFormKey.HasValue)
@@ -304,7 +265,9 @@ public class DistributionFileWriterService
             {
                 Outfit = outfit,
                 NpcFormKeys = npcFormKeys,
-                FactionFormKeys = factionFormKeys
+                FactionFormKeys = factionFormKeys,
+                KeywordFormKeys = keywordFormKeys,
+                RaceFormKeys = raceFormKeys
             };
         }
         catch (Exception ex)
@@ -312,6 +275,28 @@ public class DistributionFileWriterService
             _logger.Debug(ex, "Failed to parse distribution line: {Line}", line);
             return null;
         }
+    }
+
+    private static List<FormKey> ExtractFilterFormKeys(string line, string filterPrefix, int outfitPartIndex)
+    {
+        var partIndex = line.IndexOf(filterPrefix, StringComparison.OrdinalIgnoreCase);
+        if (partIndex < 0)
+            return [];
+
+        var start = partIndex + filterPrefix.Length;
+        var end = line.IndexOf(':', start);
+        if (end < 0 || end > outfitPartIndex)
+            end = outfitPartIndex;
+
+        var filterString = line.Substring(start, end - start);
+        return filterString
+            .Split(',')
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(TryParseFormKey)
+            .Where(fk => fk.HasValue)
+            .Select(fk => fk!.Value)
+            .ToList();
     }
 
     private static string FormatFormKey(FormKey formKey) => $"{formKey.ModKey.FileName}|{formKey.ID:X8}";

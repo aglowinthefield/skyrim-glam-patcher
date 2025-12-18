@@ -227,10 +227,10 @@ public class DistributionEditTabViewModel : ReactiveObject
                         UpdateDistributionPreview();
                     }
 
-                    // Set default filename if empty
+                    // Set default filename if empty - use unique name to avoid overwrites
                     if (string.IsNullOrWhiteSpace(NewFileName))
                     {
-                        NewFileName = "Distribution.ini";
+                        NewFileName = "Boutique_Distribution.ini";
                     }
                     UpdateDistributionFilePathFromNewFileName();
                 }

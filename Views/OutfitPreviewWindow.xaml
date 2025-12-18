@@ -31,6 +31,19 @@
             <StackPanel>
                 <StackPanel x:Name="MissingAssetsPanel"
                             Margin="0,0,0,8">
+                    <Border Background="#FFF3CD"
+                            BorderBrush="#FFECB5"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="#664D03">
+                            <Run FontWeight="SemiBold">Some assets were missing when previewing this outfit.</Run>
+                            <LineBreak /><LineBreak />
+                            <Run>Some creators like [ELLE] make their outfits such that you have to run BodySlide with the outfit before it's fully usable. If this sounds like it might be the case, quit Boutique and do all the requisite BodySlide steps, then get back here and try again!</Run>
+                        </TextBlock>
+                    </Border>
                     <TextBlock Text="Missing assets:" FontWeight="Bold" />
                     <ItemsControl x:Name="MissingAssetsList" Margin="0,4,0,0">
                         <ItemsControl.ItemTemplate>

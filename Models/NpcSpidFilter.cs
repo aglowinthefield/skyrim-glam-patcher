@@ -171,9 +171,6 @@ public class NpcSpidFilter
         if (MinLevel.HasValue && npc.Level < MinLevel.Value)
             return false;
 
-        if (MaxLevel.HasValue && npc.Level > MaxLevel.Value)
-            return false;
-
-        return true;
+        return !MaxLevel.HasValue || npc.Level <= MaxLevel.Value;
     }
 }

@@ -69,30 +69,15 @@ public sealed class SpidDistributionFilter
     {
         var parts = new List<string>();
 
-        if (!StringFilters.IsEmpty)
-        {
-            parts.Add($"Names/Keywords: {StringFilters}");
-        }
+        if (!StringFilters.IsEmpty) parts.Add($"Names/Keywords: {StringFilters}");
 
-        if (!FormFilters.IsEmpty)
-        {
-            parts.Add($"Factions/Forms: {FormFilters}");
-        }
+        if (!FormFilters.IsEmpty) parts.Add($"Factions/Forms: {FormFilters}");
 
-        if (!string.IsNullOrEmpty(LevelFilters) && !LevelFilters.Equals("NONE", System.StringComparison.OrdinalIgnoreCase))
-        {
-            parts.Add($"Level: {LevelFilters}");
-        }
+        if (!string.IsNullOrEmpty(LevelFilters) && !LevelFilters.Equals("NONE", StringComparison.OrdinalIgnoreCase)) parts.Add($"Level: {LevelFilters}");
 
-        if (!TraitFilters.IsEmpty)
-        {
-            parts.Add($"Traits: {TraitFilters}");
-        }
+        if (!TraitFilters.IsEmpty) parts.Add($"Traits: {TraitFilters}");
 
-        if (Chance < 100)
-        {
-            parts.Add($"Chance: {Chance}%");
-        }
+        if (Chance < 100) parts.Add($"Chance: {Chance}%");
 
         return parts.Count > 0 ? string.Join(", ", parts) : "All NPCs";
     }
@@ -162,23 +147,23 @@ public sealed class SpidFilterPart
     /// True if this looks like a keyword (starts with ActorType, has common keyword patterns).
     /// </summary>
     public bool LooksLikeKeyword =>
-        Value.StartsWith("ActorType", System.StringComparison.OrdinalIgnoreCase) ||
-        Value.StartsWith("Vampire", System.StringComparison.OrdinalIgnoreCase) ||
-        Value.EndsWith("Keyword", System.StringComparison.OrdinalIgnoreCase) ||
+        Value.StartsWith("ActorType", StringComparison.OrdinalIgnoreCase) ||
+        Value.StartsWith("Vampire", StringComparison.OrdinalIgnoreCase) ||
+        Value.EndsWith("Keyword", StringComparison.OrdinalIgnoreCase) ||
         Value.Contains("Type");
 
     /// <summary>
     /// True if this looks like a faction reference.
     /// </summary>
     public bool LooksLikeFaction =>
-        Value.Contains("Faction", System.StringComparison.OrdinalIgnoreCase) ||
-        Value.StartsWith("Crime", System.StringComparison.OrdinalIgnoreCase);
+        Value.Contains("Faction", StringComparison.OrdinalIgnoreCase) ||
+        Value.StartsWith("Crime", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// True if this looks like a race reference.
     /// </summary>
     public bool LooksLikeRace =>
-        Value.EndsWith("Race", System.StringComparison.OrdinalIgnoreCase);
+        Value.EndsWith("Race", StringComparison.OrdinalIgnoreCase);
 
     public override string ToString()
     {
@@ -235,10 +220,7 @@ public sealed class SpidTraitFilters
     {
         var parts = new List<string>();
 
-        if (IsFemale == true)
-            parts.Add("Female");
-        else if (IsFemale == false)
-            parts.Add("Male");
+        parts.Add(IsFemale == true ? "Female" : "Male");
 
         if (IsUnique == true)
             parts.Add("Unique");

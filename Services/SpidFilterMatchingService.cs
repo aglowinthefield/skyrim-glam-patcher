@@ -10,7 +10,7 @@ namespace Boutique.Services;
 /// </summary>
 public class SpidFilterMatchingService
 {
-    public static bool NpcMatchesFilter(NpcFilterData npc, SpidDistributionFilter filter)
+    private static bool NpcMatchesFilter(NpcFilterData npc, SpidDistributionFilter filter)
     {
         // All filter sections are multiplicative (AND logic)
         // An empty/NONE filter section means "match all"
