@@ -21,7 +21,7 @@
                            Focusable="True"
                            ShowCoordinateSystem="False"
                            ShowFrameRate="False"
-                           EnableCurrentPosition="False"
+                           EnableCursorPosition="False"
                            UseDefaultGestures="True" />
 
         <Border Grid.Row="1"
@@ -41,8 +41,8 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <Expander x:Name="LightingDebugExpander"
-                          Header="Lighting multipliers (Debug)"
+                <Expander
+                  Header="Lighting multipliers (Debug)"
                           IsExpanded="False"
                           Margin="0,0,0,12">
                     <Grid Margin="0,6,0,0">

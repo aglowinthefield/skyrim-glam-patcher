@@ -32,25 +32,6 @@ public static partial class InputPatterns
             Sanitize(value) is { Length: > 0 } sanitized ? sanitized : fallback;
     }
 
-    /// <summary>
-    /// Filename pattern: letters, digits, underscores, hyphens, and periods.
-    /// Valid for safe filenames (excludes path separators and special characters).
-    /// </summary>
-    public static class Filename
-    {
-        /// <summary>
-        /// Validates that a string contains only safe filename characters.
-        /// </summary>
-        public static bool IsValid(string? value) =>
-            !string.IsNullOrEmpty(value) && FilenameValidatorRegex().IsMatch(value);
-
-        /// <summary>
-        /// Sanitizes a string by removing unsafe filename characters.
-        /// </summary>
-        public static string Sanitize(string? value) =>
-            string.IsNullOrEmpty(value) ? string.Empty : FilenameSanitizerRegex().Replace(value, string.Empty);
-    }
-
     // Identifier: alphanumeric + underscore
     [GeneratedRegex("^[A-Za-z0-9_]+$")]
     private static partial Regex IdentifierValidatorRegex();

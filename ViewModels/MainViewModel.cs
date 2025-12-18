@@ -59,6 +59,13 @@ public class MainViewModel : ReactiveObject
         Distribution = distributionViewModel;
         _logger = loggingService.ForContext<MainViewModel>();
 
+        // Forward Distribution tab preview requests to our central ShowPreview interaction
+        Distribution.ShowPreview.RegisterHandler(async interaction =>
+        {
+            await ShowPreview.Handle(interaction.Input);
+            interaction.SetOutput(Unit.Default);
+        });
+
         // Subscribe to plugin list changes so we can refresh the available plugins dropdown
         _mutagenService.PluginsChanged += OnPluginsChanged;
 
@@ -1211,9 +1218,6 @@ public class MainViewModel : ReactiveObject
             _logger.Warning("Outfit creation blocked due to slot conflict: {Message}", validationMessage);
             return;
         }
-
-        // Yield to UI thread to allow UI to update before showing popup
-        await Task.Yield();
 
         const string namePrompt = "Enter the outfit name (also used as the EditorID):";
         var outfitName = await RequestOutfitName.Handle(namePrompt).ToTask();

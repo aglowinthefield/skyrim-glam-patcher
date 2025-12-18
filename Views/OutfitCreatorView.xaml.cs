@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Boutique.Utilities;
 using Boutique.ViewModels;
 
@@ -217,25 +218,23 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private async void NewOutfitDropZone_OnDrop(object sender, DragEventArgs e)
+    private void NewOutfitDropZone_OnDrop(object sender, DragEventArgs e)
     {
         if (sender is Border border)
             SetDropTargetState(border, false);
 
+        e.Handled = true; // Handle immediately to let drag-drop modal loop complete
+
         if (ViewModel is not MainViewModel viewModel)
-        {
-            e.Handled = true;
             return;
-        }
 
         if (!TryExtractArmorRecords(e.Data, out var pieces) || pieces.Count == 0)
-        {
-            e.Handled = true;
             return;
-        }
 
-        await viewModel.CreateOutfitFromPiecesAsync(pieces);
-        e.Handled = true;
+        // Schedule async work after drag-drop modal loop releases
+        _ = Dispatcher.InvokeAsync(
+            async () => await viewModel.CreateOutfitFromPiecesAsync(pieces),
+            DispatcherPriority.Background);
     }
 
     private void OutfitDraftBorder_OnDragEnter(object sender, DragEventArgs e) => HandleDropTargetDrag(sender as Border, e);

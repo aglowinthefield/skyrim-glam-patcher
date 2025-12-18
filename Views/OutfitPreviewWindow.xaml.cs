@@ -20,7 +20,7 @@ using Vector3 = System.Numerics.Vector3;
 
 namespace Boutique.Views;
 
-public partial class OutfitPreviewWindow : IDisposable
+public sealed partial class OutfitPreviewWindow : IDisposable
 {
     private bool _disposed;
     private const float AmbientSrgb = 0.2f;
@@ -480,7 +480,7 @@ public partial class OutfitPreviewWindow : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (_disposed)
             return;

@@ -1,8 +1,6 @@
-using System.Windows.Controls;
-
 namespace Boutique.Views;
 
-public partial class SettingsPanelView : UserControl
+public partial class SettingsPanelView
 {
     public SettingsPanelView()
     {
